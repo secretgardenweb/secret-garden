@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Secret Garden HK</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    
+    body { 
+      background: #080d0a; 
+      background-image: radial-gradient(circle at 50% 10%, #112218 0%, #060907 100%);
+      color: #e8ece9; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      overflow: hidden; 
+    }
+
+    #app-shell { 
+      width: 100%; 
+      max-width: 420px; 
+      height: 100vh; 
+      max-height: 850px; 
+      background: rgba(15, 23, 19, 0.85); 
+      backdrop-filter: blur(16px);
+      border-radius: 20px; 
+      position: relative; 
+      overflow: hidden; 
+      display: flex; 
+      flex-direction: column; 
+      box-shadow: 0 30px 60px rgba(0,0,0,0.9), inset 0 1px 1px rgba(255,255,255,0.08); 
+      border: 1px solid rgba(62, 107, 82, 0.3); 
+    }
+
+    header { 
+      height: 52px;
+      padding: 0 16px; 
+      text-align: center; 
+      border-bottom: 1px solid rgba(62, 107, 82, 0.25); 
+      background: rgba(8, 13, 10, 0.6); 
+      font-weight: 700; 
+      letter-spacing: 2px; 
+      color: #e0a96d; 
+      text-transform: uppercase; 
+      font-size: 14px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      z-index: 10;
+    }
+
+    .view-container { flex: 1; position: relative; overflow: hidden; }
+
+    .view { 
+      position: absolute; 
+      inset: 0;
+      display: flex; 
+      flex-direction: column; 
+      background: rgba(15, 23, 19, 0.85);
+      overflow-y: auto;
+    }
+    .hidden { display: none !important; }
+
+    #bottom-nav {
+      height: 60px;
+      background: rgba(8, 13, 10, 0.95);
+      border-top: 1px solid rgba(62, 107, 82, 0.3);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 20;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: #62756a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 33%;
+      padding: 8px 0;
+      transition: color 0.2s;
+    }
+
+    .nav-btn svg { fill: currentColor; }
+    .nav-btn.active { color: #e0a96d; }
+
+    .form-padding { padding: 22px; }
+    .setup-title { font-size: 22px; font-weight: 700; color: #f2f5f3; margin-bottom: 6px; letter-spacing: -0.5px; }
+    .setup-subtitle { font-size: 13px; color: #8fa397; margin-bottom: 18px; line-height: 1.4; }
+    
+    .warning-box {
+      background: rgba(232, 65, 24, 0.12);
+      border: 1px dashed rgba(232, 65, 24, 0.4);
+      color: #ff6b6b;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      line-height: 1.4;
+      margin-bottom: 18px;
+    }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #a4cbb5; margin-bottom: 6px; letter-spacing: 0.8px; }
+    .form-group input, .form-group select, .form-group textarea { 
+      width: 100%; 
+      background: rgba(22, 36, 29, 0.8); 
+      border: 1px solid rgba(62, 107, 82, 0.4); 
+      border-radius: 12px; 
+      padding: 12px 14px; 
+      color: #fff; 
+      font-size: 14px; 
+      outline: none; 
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; }
+    
+    .file-input-wrapper { 
+      background: linear-gradient(135deg, rgba(30, 51, 40, 0.6), rgba(18, 31, 24, 0.6)); 
+      border: 1px dashed #e0a96d; 
+      border-radius: 14px; 
+      padding: 18px; 
+      text-align: center; 
+      cursor: pointer; 
+      margin-bottom: 8px; 
+    }
+    .file-input-wrapper input { display: none; }
+    .file-label { font-size: 13px; color: #e0a96d; font-weight: 600; }
+    .photo-notice { font-size: 11px; color: #e0a96d; background: rgba(224, 169, 109, 0.1); border: 1px dashed rgba(224, 169, 109, 0.3); padding: 8px 12px; border-radius: 10px; margin-bottom: 18px; line-height: 1.4; }
+    .photo-preview { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin: 10px auto 0; display: none; border: 2px solid #e0a96d; }
+
+    #auth-view { z-index: 90; background: #080d0a; justify-content: center; }
+    .auth-toggle { text-align: center; margin-top: 16px; font-size: 13px; color: #8fa397; cursor: pointer; text-decoration: underline; }
+
+    #deck-header { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 12px 16px 0; }
+    .pref-btn { background: rgba(224, 169, 109, 0.15); border: 1px solid #e0a96d; color: #e0a96d; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+    #deck-view { justify-content: center; align-items: center; padding: 10px 16px 16px; overflow: hidden; height: 100%; display: flex; flex-direction: column; flex: 1; }
+    .card-deck { position: relative; width: 100%; height: 80%; }
+
+    .card { 
+      position: absolute; 
+      width: 100%; 
+      height: 100%; 
+      background: linear-gradient(160deg, #16241d 0%, #0f1914 100%); 
+      border-radius: 24px; 
+      padding: 20px; 
+      border: 1px solid rgba(82, 138, 106, 0.3); 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: space-between; 
+      box-shadow: 0 15px 35px rgba(0,0,0,0.6); 
+      user-select: none; 
+      touch-action: none; 
+      cursor: grab; 
+    }
+
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(62, 107, 82, 0.25); padding-bottom: 12px; }
+    .user-alias { font-size: 22px; font-weight: 700; color: #ffffff; }
+    .user-badge { background: rgba(224, 169, 109, 0.12); color: #e0a96d; border: 1px solid rgba(224, 169, 109, 0.3); padding: 5px 10px; border-radius: 14px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+
+    .card-body { flex-grow: 1; overflow-y: auto; }
+    
+    .hidden-photo-box { 
+      width: 100%; 
+      height: 100px; 
+      border-radius: 14px; 
+      background: rgba(8, 13, 10, 0.7); 
+      border: 1px dashed rgba(224, 169, 109, 0.4); 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      color: #e0a96d; 
+      font-size: 12px; 
+      font-weight: 600; 
+      margin-bottom: 12px; 
+      text-align: center; 
+      padding: 10px; 
+    }
+
+    .section-title { font-size: 11px; text-transform: uppercase; color: #a4cbb5; font-weight: 800; margin-top: 12px; margin-bottom: 6px; letter-spacing: 1px; }
+
+    .grid-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .info-item { background: rgba(28, 46, 37, 0.6); padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(62, 107, 82, 0.2); }
+    .info-label { color: #769383; font-size: 10px; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px; }
+    .info-val { color: #e8ece9; font-size: 13px; font-weight: 600; }
+
+    .about-box { background: rgba(28, 46, 37, 0.6); padding: 12px; border-radius: 10px; border: 1px solid rgba(62, 107, 82, 0.2); color: #e8ece9; font-size: 13px; line-height: 1.4; }
+
+    .tags-container { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { background: rgba(34, 56, 45, 0.7); color: #d1e2d8; padding: 6px 12px; border-radius: 16px; font-size: 12px; border: 1px solid rgba(82, 138, 106, 0.3); }
+
+    .stamp { position: absolute; top: 35px; padding: 8px 18px; border-radius: 10px; font-size: 22px; font-weight: 800; opacity: 0; pointer-events: none; border: 3px solid; z-index: 10; }
+    .stamp.like { right: 24px; color: #4cd137; border-color: #4cd137; transform: rotate(12deg); }
+    .stamp.nope { left: 24px; color: #e84118; border-color: #e84118; transform: rotate(-12deg); }
+
+    .controls { display: flex; justify-content: center; gap: 28px; margin-top: 12px; }
+    .btn-circle { width: 58px; height: 58px; border-radius: 50%; border: none; font-size: 22px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+    .btn-nope { background: rgba(35, 15, 18, 0.8); color: #e84118; border: 1px solid rgba(232, 65, 24, 0.4); }
+    .btn-like { background: rgba(15, 35, 22, 0.8); color: #4cd137; border: 1px solid rgba(76, 209, 55, 0.4); }
+
+    .gender-selector { display: flex; gap: 10px; margin-bottom: 20px; }
+    .gender-btn { flex: 1; padding: 12px; background: rgba(22, 36, 29, 0.8); border: 1px solid rgba(62, 107, 82, 0.4); border-radius: 12px; color: #8fa397; font-weight: 700; cursor: pointer; text-align: center; }
+    .gender-btn.active { background: rgba(224, 169, 109, 0.2); border-color: #e0a96d; color: #e0a96d; }
+
+    .room-list-item {
+      padding: 16px;
+      border-bottom: 1px solid rgba(62, 107, 82, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .room-list-item:hover { background: rgba(224, 169, 109, 0.08); }
+    .room-name { font-weight: 700; color: #e0a96d; font-size: 16px; }
+    .room-sub { font-size: 12px; color: #8fa397; margin-top: 3px; }
+
+    #match-overlay { position: absolute; inset: 0; background: rgba(6, 9, 7, 0.96); z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; text-align: center; }
+    #match-overlay h1 { color: #e0a96d; font-size: 30px; margin-bottom: 8px; font-weight: 800; }
+    #match-overlay p { color: #8fa397; margin-bottom: 32px; font-size: 14px; }
+
+    .btn-primary { 
+      background: linear-gradient(135deg, #e0a96d 0%, #c48a4e 100%); 
+      color: #0b0f0d; 
+      border: none; 
+      padding: 14px 28px; 
+      border-radius: 30px; 
+      font-weight: 700; 
+      font-size: 15px; 
+      cursor: pointer; 
+      width: 100%; 
+    }
+
+    #active-chat-view { background: #080d0a; display: flex; flex-direction: column; z-index: 80; }
+    .chat-header { padding: 12px 16px; background: rgba(15, 23, 19, 0.95); border-bottom: 1px solid rgba(62, 107, 82, 0.25); display: flex; justify-content: space-between; align-items: center; }
+    .chat-header-btn { background: none; border: none; color: #e0a96d; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    .chat-header-btn.quit { color: #e84118; }
+
+    .reveal-header-btn {
+      background: rgba(224, 169, 109, 0.15);
+      border: 1px solid #e0a96d;
+      color: #e0a96d;
+      padding: 6px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .reveal-header-btn.used {
+      border-color: rgba(62, 107, 82, 0.3);
+      color: #62756a;
+      background: rgba(20, 30, 24, 0.4);
+      cursor: default;
+    }
+    
+    .chat-messages { flex: 1; padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+    
+    .message { max-width: 80%; padding: 11px 15px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+    .message.received { background: #182820; border: 1px solid rgba(62, 107, 82, 0.2); align-self: flex-start; color: #d1e2d8; border-bottom-left-radius: 4px; }
+    .message.sent { background: #e0a96d; align-self: flex-end; color: #0b0f0d; font-weight: 500; border-bottom-right-radius: 4px; }
+    .message.system { background: rgba(232, 65, 24, 0.15); border: 1px solid rgba(232, 65, 24, 0.4); align-self: center; color: #e84118; text-align: center; max-width: 90%; font-size: 12px; font-weight: 600; }
+
+    .chat-photo-msg { max-width: 220px; border-radius: 14px; overflow: hidden; border: 1px solid rgba(224, 169, 109, 0.3); }
+    .chat-photo-msg img { width: 100%; height: auto; display: block; }
+
+    .view-once-card { 
+      background: linear-gradient(135deg, #1c2b23 0%, #121e18 100%); 
+      border: 1px solid #e0a96d; 
+      border-radius: 14px; 
+      padding: 12px 16px; 
+      display: flex; 
+      align-items: center; 
+      gap: 10px; 
+      cursor: pointer; 
+      color: #e0a96d; 
+      font-weight: 600; 
+      font-size: 13px; 
+    }
+    .view-once-card.destroyed {
+      border-color: rgba(62, 107, 82, 0.3);
+      color: #62756a;
+      cursor: default;
+      background: rgba(20, 30, 24, 0.4);
+    }
+
+    .chat-input-area { padding: 12px; background: #0f1713; border-top: 1px solid rgba(62, 107, 82, 0.25); position: relative; }
+    .chat-input-row { display: flex; gap: 8px; align-items: center; }
+    .chat-input { flex: 1; background: #16241d; border: 1px solid rgba(62, 107, 82, 0.4); border-radius: 20px; padding: 10px 16px; color: white; outline: none; }
+    .chat-input:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-icon { background: rgba(224, 169, 109, 0.15); color: #e0a96d; border: 1px solid rgba(224, 169, 109, 0.3); width: 40px; height: 40px; border-radius: 50%; font-size: 18px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+    .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-send { background: #e0a96d; color: #0b0f0d; border: none; padding: 10px 18px; border-radius: 20px; font-weight: 700; cursor: pointer; }
+    .btn-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #photo-popover { 
+      position: absolute; 
+      bottom: 60px; 
+      left: 12px; 
+      background: #14221a; 
+      border: 1px solid #e0a96d; 
+      border-radius: 16px; 
+      padding: 8px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 6px; 
+      box-shadow: 0 10px 25px rgba(0,0,0,0.8); 
+      z-index: 50; 
+    }
+    .popover-opt { 
+      background: rgba(255,255,255,0.03); 
+      border: none; 
+      color: #e8ece9; 
+      padding: 10px 14px; 
+      border-radius: 10px; 
+      font-size: 13px; 
+      text-align: left; 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+      cursor: pointer; 
+    }
+    .popover-opt:hover { background: rgba(224, 169, 109, 0.2); color: #e0a96d; }
+
+    #photo-modal { position: absolute; inset: 0; background: #000; z-index: 200; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .photo-wrapper { position: relative; width: 88%; max-width: 320px; height: 420px; border-radius: 16px; overflow: hidden; border: 1px solid rgba(224, 169, 109, 0.3); }
+    .photo-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+    .watermark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, 0.35); font-weight: 900; font-size: 14px; transform: rotate(-25deg); pointer-events: none; text-align: center; line-height: 1.6; letter-spacing: 1px; }
+    .timer-badge { margin-top: 18px; color: #e0a96d; font-weight: 700; font-size: 16px; }
+  </style>
+</head>
+<body>
+
+  <div id="app-shell">
+    <header>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#e0a96d">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+        <span>SECRET GARDEN (HK)</span>
+      </div>
+      <button id="logout-btn" style="background:none; border:none; color:#8fa397; font-size:12px; cursor:pointer;" onclick="logout()">Logout</button>
+    </header>
+
+    <div class="view-container">
+
+      <!-- 0. LOGIN / SIGN UP VIEW -->
+      <div id="auth-view" class="view form-padding">
+        <div class="setup-title" id="auth-title">Sign In</div>
+        <div class="setup-subtitle" id="auth-subtitle">Enter your secret credentials to enter the garden.</div>
+
+        <div class="warning-box">
+          ⚠️ <strong>SECURITY WARNING:</strong> Your account is completely anonymous. If you forget your User Name or Password, <strong>there is no way to recover your account</strong>.
+        </div>
+
+        <div class="form-group">
+          <label>User Name (Account ID)</label>
+          <input type="text" id="auth-username" placeholder="Enter user name">
+        </div>
+
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="auth-pass" placeholder="••••••••">
+        </div>
+
+        <button class="btn-primary" id="auth-submit-btn" style="margin-top:10px;" onclick="handleAuthSubmit()">Enter Secret Garden</button>
+
+        <div class="auth-toggle" onclick="toggleAuthMode()">
+          <span id="auth-toggle-text">Don't have an account? Register Now</span>
+        </div>
+      </div>
+
+      <!-- SLIDE 1: MATCHING PLACE (Swipe Cards) -->
+      <div id="slide-match" class="view hidden">
+        <div id="deck-header">
+          <span style="font-size:12px; font-weight:800; color:#a4cbb5; letter-spacing:1px; text-transform:uppercase;">Discover HK Profiles</span>
+          <button class="pref-btn" onclick="openPreferences()">⚙ Preferences</button>
+        </div>
+        <div id="deck-view">
+          <div class="card-deck" id="deck"></div>
+          <div class="controls">
+            <button class="btn-circle btn-nope" onclick="handleButtonClick(false)">✕</button>
+            <button class="btn-circle btn-like" onclick="handleButtonClick(true)">♥</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 1B: MATCH PREFERENCE SLIDE -->
+      <div id="slide-preference" class="view hidden form-padding">
+        <div class="setup-title">Matching Preferences</div>
+        <div class="setup-subtitle">Filter profiles from the global pool.</div>
+
+        <div class="form-group">
+          <label>Gender Preference</label>
+          <div class="gender-selector">
+            <div class="gender-btn active" id="pref-gen-any" onclick="selectGenderPref('any')">Any</div>
+            <div class="gender-btn" id="pref-gen-male" onclick="selectGenderPref('male')">Male</div>
+            <div class="gender-btn" id="pref-gen-female" onclick="selectGenderPref('female')">Female</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Age Range Filter (18 - 99)</label>
+          <div class="form-row">
+            <div class="form-group">
+              <input type="number" id="pref-age-min" min="18" max="99" placeholder="Min (18)">
+            </div>
+            <div style="display:flex; align-items:center; color:#8fa397; font-weight:bold;">-</div>
+            <div class="form-group">
+              <input type="number" id="pref-age-max" min="18" max="99" placeholder="Max (99)">
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;"></div>
+        <button class="btn-primary" style="margin-bottom: 20px;" onclick="savePreferences()">Save Preferences</button>
+      </div>
+
+      <!-- SLIDE 2: SECRET ROOM LIST -->
+      <div id="slide-rooms" class="view hidden">
+        <div style="padding:16px 16px 8px; font-weight:700; color:#a4cbb5; font-size:12px; text-transform:uppercase; letter-spacing:1px;">
+          Active Secret Rooms
+        </div>
+        <div id="secret-room-container"></div>
+      </div>
+
+      <!-- SLIDE 3: EDIT PROFILE VIEW -->
+      <div id="slide-profile" class="view hidden form-padding">
+        <div class="setup-title">Edit HK Profile</div>
+        <div class="setup-subtitle">Complete profile to add yourself into the matching pool.</div>
+
+        <!-- STRICT MANDATORY FIELD -->
+        <div class="file-input-wrapper" onclick="document.getElementById('user-photo').click()">
+          <div class="file-label" id="photo-label">📷 Upload Secret Photo * (Required)</div>
+          <input type="file" id="user-photo" accept="image/*" onchange="previewUserPhoto(event)">
+          <img id="my-photo-preview" class="photo-preview" alt="Preview">
+        </div>
+        <div class="photo-notice">
+          🔒 <strong>Confidentiality Notice:</strong> Profile photos are strictly required to activate matching, but stay hidden until revealed inside a secret room.
+        </div>
+
+        <!-- ALL OTHER FIELDS ARE OPTIONAL -->
+        <div class="form-group">
+          <label>Profile Display Name (Public Alias)</label>
+          <input type="text" id="user-alias" placeholder="e.g. #HK_NightOwl">
+        </div>
+
+        <div class="form-group">
+          <label>Looking For</label>
+          <input type="text" id="user-looking-for" placeholder="e.g. Serious relationship, casual chat, coffee buddy...">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="user-gender">
+              <option value="">-- Optional --</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Age</label>
+            <input type="number" id="user-age" min="18" max="99" placeholder="e.g. 26">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Marital Status</label>
+            <select id="user-marital">
+              <option value="">-- Optional --</option>
+              <option value="Single">Single</option>
+              <option value="In Relationship">In Relationship</option>
+              <option value="Married">Married</option>
+              <option value="Separated">Separated</option>
+              <option value="Divorced">Divorced</option>
+              <option value="Widowed">Widowed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Height (cm)</label>
+            <input type="text" id="user-height" placeholder="e.g. 175 cm">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>About Me</label>
+          <textarea id="user-about" placeholder="Share your hobbies, favorite HK chill spots, etc..."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Ethnicity</label>
+            <input type="text" id="user-ethnicity" placeholder="e.g. Chinese">
+          </div>
+          <div class="form-group">
+            <label>MBTI Personality</label>
+            <input type="text" id="user-mbti" placeholder="e.g. ENFP">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Occupation</label>
+            <input type="text" id="user-occupation" placeholder="e.g. Finance / Tech">
+          </div>
+          <div class="form-group">
+            <label>HK District / Area</label>
+            <select id="user-location">
+              <option value="">-- Optional --</option>
+              <option>Central & Western</option>
+              <option>Wan Chai</option>
+              <option>Eastern (Causeway Bay/Tin Hau)</option>
+              <option>Yau Tsim Mong (TST/Mong Kok)</option>
+              <option>Sham Shui Po</option>
+              <option>Shatin / New Territories</option>
+              <option>Discovery Bay / Islands</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Education Level</label>
+            <select id="user-degree">
+              <option value="">-- Optional --</option>
+              <option>Secondary School</option>
+              <option>Associate / Higher Diploma</option>
+              <option>Bachelor's Degree</option>
+              <option>Master's / Doctorate</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Spoken Languages</label>
+            <input type="text" id="user-language" placeholder="e.g. Cantonese, English">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Interests (Comma separated)</label>
+          <input type="text" id="user-interests" placeholder="e.g. Cafe Hopping, Hiking, Nightlife, Gaming">
+        </div>
+
+        <button class="btn-primary" style="margin-top:12px; margin-bottom: 24px;" onclick="saveProfile()">Save & Join Matching Pool</button>
+      </div>
+
+      <!-- ACTIVE CHAT VIEW -->
+      <div id="active-chat-view" class="view hidden">
+        <div class="chat-header">
+          <button class="chat-header-btn" onclick="backToRoomList()">&lt; Rooms</button>
+          <span id="chat-partner-name" style="font-weight: 700; color: #fff; font-size:15px;">#Partner</span>
+          <button id="btn-reveal-10s" class="reveal-header-btn" onclick="trigger10sPhotoReveal()">👁️ Photo (10s)</button>
+          <button class="chat-header-btn quit" onclick="quitSecretRoom()">Quit</button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages"></div>
+
+        <div class="chat-input-area">
+          <div id="photo-popover" class="hidden">
+            <button class="popover-opt" onclick="triggerFileInput('normal')">🖼️ Send Normal Photo</button>
+            <button class="popover-opt" onclick="triggerFileInput('view-once')">🔥 Send View-Once Photo</button>
+          </div>
+
+          <input type="file" id="chat-photo-input" accept="image/*" class="hidden" onchange="handleChatPhotoUpload(event)">
+
+          <div class="chat-input-row">
+            <button class="btn-icon" id="btn-photo-opt" onclick="togglePhotoPopover()">📷</button>
+            <input type="text" class="chat-input" id="message-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
+            <button class="btn-send" id="btn-send-msg" onclick="sendMessage()">Send</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MATCH OVERLAY MODAL -->
+    <div id="match-overlay" class="hidden">
+      <h1>It's a Match</h1>
+      <p>Both you and <span id="match-alias" style="color:#e0a96d; font-weight:bold;"></span> liked each other!</p>
+      <button class="btn-primary" onclick="enterMatchedRoomDirectly()">Enter Secret Room</button>
+    </div>
+
+    <!-- ONE-TIME PHOTO VIEWER MODAL -->
+    <div id="photo-modal" class="hidden">
+      <div class="photo-wrapper">
+        <div class="watermark" id="watermark-overlay">SECRET GARDEN HK<br>CONFIDENTIAL VIEW</div>
+        <img id="partner-photo-img" src="" alt="Secret Reveal">
+      </div>
+      <div class="timer-badge" id="countdown-timer">Self-destructing in 10s</div>
+    </div>
+
+    <!-- BOTTOM TAB NAVIGATION -->
+    <nav id="bottom-nav">
+      <button class="nav-btn active" id="tab-match" onclick="switchSlide('match')">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        Match
+      </button>
+      <button class="nav-btn" id="tab-rooms" onclick="switchSlide('rooms')">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+        Secret Rooms
+      </button>
+      <button class="nav-btn" id="tab-profile" onclick="switchSlide('profile')">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        Profile
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    let isSignUp = false;
+    let isLoggedIn = false;
+    let currentUsername = null;
+    let activeRoomId = null;
+    let activeMatchedProfile = null;
+    let uploadedUserPhoto = null;
+    let selectedSendMode = 'normal';
+    let selectedGenderPref = 'any';
+    let activeCardProfile = null;
+
+    // Local Storage Keys & Real-Time Sync Channel
+    const DB_KEY = 'sg_users_db_hk';
+    const POOL_KEY = 'sg_profile_pool_hk';
+    const ROOMS_KEY = 'sg_shared_secret_rooms_hk';
+    const LIKES_KEY = 'sg_user_likes_hk';
+
+    const syncChannel = new BroadcastChannel('sg_global_sync_hk');
+    syncChannel.onmessage = (event) => {
+      if (event.data && event.data.type === 'PROFILE_POOL_UPDATED') {
+        if (isLoggedIn && !document.getElementById('slide-match').classList.contains('hidden') && !activeCardProfile) {
+          renderDeck();
+        }
+      }
+    };
+
+    function getUsersDB() { return JSON.parse(localStorage.getItem(DB_KEY) || '{}'); }
+    function saveUsersDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+    function getProfilePool() { return JSON.parse(localStorage.getItem(POOL_KEY) || '{}'); }
+    function saveProfilePool(pool) { 
+      localStorage.setItem(POOL_KEY, JSON.stringify(pool)); 
+      syncChannel.postMessage({ type: 'PROFILE_POOL_UPDATED' });
+    }
+
+    function getSharedRooms() { return JSON.parse(localStorage.getItem(ROOMS_KEY) || '[]'); }
+    function saveSharedRooms(rooms) { localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms)); }
+
+    function getLikesDB() { return JSON.parse(localStorage.getItem(LIKES_KEY) || '{}'); }
+    function saveLikesDB(likes) { localStorage.setItem(LIKES_KEY, JSON.stringify(likes)); }
+
+    /* Auth & Registration Logic */
+    function toggleAuthMode() {
+      isSignUp = !isSignUp;
+      document.getElementById('auth-title').innerText = isSignUp ? "Create Account" : "Sign In";
+      document.getElementById('auth-subtitle').innerText = isSignUp 
+        ? "Register with a unique User Name and Password." 
+        : "Enter your secret credentials to enter the garden.";
+      document.getElementById('auth-submit-btn').innerText = isSignUp ? "Register Account" : "Enter Secret Garden";
+      document.getElementById('auth-toggle-text').innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Now";
+    }
+
+    function handleAuthSubmit() {
+      const usernameInput = document.getElementById('auth-username').value.trim();
+      const passInput = document.getElementById('auth-pass').value.trim();
+      const db = getUsersDB();
+
+      if (!usernameInput || !passInput) {
+        alert("Please enter both User Name and Password.");
+        return;
+      }
+
+      const lowerUsername = usernameInput.toLowerCase();
+
+      if (isSignUp) {
+        let isUsernameTaken = false;
+        let isPasswordTaken = false;
+
+        for (let userKey in db) {
+          if (userKey.toLowerCase() === lowerUsername) isUsernameTaken = true;
+          if (db[userKey].pass === passInput) isPasswordTaken = true;
+        }
+
+        if (isUsernameTaken && isPasswordTaken) {
+          alert("Registration Failed: Both this User Name and Password are already in use. Please change both.");
+          return;
+        }
+        if (isUsernameTaken) {
+          alert("Registration Failed: User Name taken. Please select another User Name.");
+          return;
+        }
+        if (isPasswordTaken) {
+          alert("Registration Failed: Password taken. Please select another Password.");
+          return;
+        }
+
+        db[usernameInput] = {
+          pass: passInput,
+          profile: {
+            username: usernameInput,
+            id: 'usr_' + Date.now(),
+            alias: 'HK_' + usernameInput,
+            lookingFor: '',
+            maritalStatus: '',
+            gender: '',
+            about: '',
+            age: '',
+            height: '',
+            ethnicity: '',
+            occupation: '',
+            location: '',
+            degree: '',
+            mbti: '',
+            language: '',
+            interests: [],
+            photo: '',
+            dismissed: []
+          },
+          preferences: { gender: 'any', minAge: 18, maxAge: 99 }
+        };
+
+        saveUsersDB(db);
+        currentUsername = usernameInput;
+        isLoggedIn = true;
+
+        alert("Account registered! Please upload a photo to activate your profile in the pool.");
+        document.getElementById('auth-view').classList.add('hidden');
+        loadProfileForm();
+        switchSlide('profile');
+      } else {
+        if (!db[usernameInput] || db[usernameInput].pass !== passInput) {
+          alert("Invalid User Name or Password.");
+          return;
+        }
+
+        currentUsername = usernameInput;
+        isLoggedIn = true;
+
+        document.getElementById('auth-view').classList.add('hidden');
+        loadProfileForm();
+        switchSlide('match');
+      }
+    }
+
+    function logout() {
+      isLoggedIn = false;
+      currentUsername = null;
+      activeCardProfile = null;
+      document.getElementById('auth-username').value = '';
+      document.getElementById('auth-pass').value = '';
+      document.getElementById('auth-view').classList.remove('hidden');
+    }
+
+    /* Tab Navigation */
+    function switchSlide(slideName) {
+      if (!isLoggedIn) return;
+
+      document.getElementById('slide-match').classList.add('hidden');
+      document.getElementById('slide-preference').classList.add('hidden');
+      document.getElementById('slide-rooms').classList.add('hidden');
+      document.getElementById('slide-profile').classList.add('hidden');
+      document.getElementById('active-chat-view').classList.add('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+      if (slideName === 'match') {
+        document.getElementById('slide-match').classList.remove('hidden');
+        document.getElementById('tab-match').classList.add('active');
+        renderDeck();
+      } else if (slideName === 'rooms') {
+        document.getElementById('slide-rooms').classList.remove('hidden');
+        document.getElementById('tab-rooms').classList.add('active');
+        renderRoomList();
+      } else if (slideName === 'profile') {
+        document.getElementById('slide-profile').classList.remove('hidden');
+        document.getElementById('tab-profile').classList.add('active');
+      }
+    }
+
+    /* Match Preferences */
+    function openPreferences() {
+      const db = getUsersDB();
+      const prefs = db[currentUsername]?.preferences || { gender: 'any', minAge: 18, maxAge: 99 };
+
+      selectGenderPref(prefs.gender || 'any');
+      document.getElementById('pref-age-min').value = prefs.minAge || 18;
+      document.getElementById('pref-age-max').value = prefs.maxAge || 99;
+
+      document.getElementById('slide-match').classList.add('hidden');
+      document.getElementById('slide-preference').classList.remove('hidden');
+    }
+
+    function selectGenderPref(gender) {
+      selectedGenderPref = gender;
+      document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`pref-gen-${gender}`).classList.add('active');
+    }
+
+    function savePreferences() {
+      let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
+      let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
+
+      if (minAge < 18) minAge = 18;
+      if (maxAge > 99) maxAge = 99;
+      if (minAge > maxAge) minAge = maxAge;
+
+      const db = getUsersDB();
+      if (db[currentUsername]) {
+        db[currentUsername].preferences = { gender: selectedGenderPref, minAge: minAge, maxAge: maxAge };
+        saveUsersDB(db);
+      }
+
+      activeCardProfile = null;
+      switchSlide('match');
+    }
+
+    /* Fetch Next Random Profile from Global Pool */
+    function getRandomPoolProfile() {
+      const pool = getProfilePool();
+      const db = getUsersDB();
+      const myData = db[currentUsername] || {};
+      const myProfile = myData.profile || {};
+      const dismissedList = myProfile.dismissed || [];
+      const prefs = myData.preferences || { gender: 'any', minAge: 18, maxAge: 99 };
+
+      const eligibleProfiles = [];
+
+      for (let usrKey in pool) {
+        if (usrKey !== currentUsername) {
+          const targetProf = pool[usrKey];
+          if (targetProf && targetProf.photo) {
+            if (dismissedList.includes(usrKey)) continue;
+
+            if (prefs.gender !== 'any' && targetProf.gender) {
+              if (targetProf.gender.toLowerCase() !== prefs.gender.toLowerCase()) continue;
+            }
+
+            if (targetProf.age) {
+              const ageNum = parseInt(targetProf.age);
+              if (ageNum < prefs.minAge || ageNum > prefs.maxAge) continue;
+            }
+
+            eligibleProfiles.push(targetProf);
+          }
+        }
+      }
+
+      if (eligibleProfiles.length === 0) return null;
+      const randomIndex = Math.floor(Math.random() * eligibleProfiles.length);
+      return eligibleProfiles[randomIndex];
+    }
+
+    /* Render Cards Deck */
+    function renderDeck() {
+      const deckEl = document.getElementById('deck');
+      deckEl.innerHTML = '';
+
+      if (!activeCardProfile) {
+        activeCardProfile = getRandomPoolProfile();
+      }
+
+      if (!activeCardProfile) {
+        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the pool right now.<br><br>Adjust your Preferences or check back soon!</div>`;
+        return;
+      }
+
+      const profile = activeCardProfile;
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const interestsList = Array.isArray(profile.interests) 
+        ? profile.interests 
+        : (profile.interests ? profile.interests.split(',').map(s=>s.trim()) : []);
+
+      card.innerHTML = `
+        <div class="stamp like">LIKE</div>
+        <div class="stamp nope">NOPE</div>
+        <div class="card-header">
+          <div class="user-alias">${profile.alias || 'Anonymous HK User'}</div>
+          <div class="user-badge">Discretion Guaranteed</div>
+        </div>
+        <div class="card-body">
+          <div class="hidden-photo-box">
+            <span>🔒 Confidential Profile Photo</span>
+            <span style="font-weight:400; font-size:10px; color:#8fa397; margin-top:4px;">Photo visible for 10s inside secret room.</span>
+          </div>
+
+          ${profile.lookingFor ? `
+            <div class="section-title">Looking For</div>
+            <div class="about-box" style="color:#e0a96d; font-weight:600;">${profile.lookingFor}</div>
+          ` : ''}
+
+          ${profile.about ? `
+            <div class="section-title">About Me</div>
+            <div class="about-box">${profile.about}</div>
+          ` : ''}
+
+          <div class="section-title">Overview</div>
+          <div class="grid-info">
+            <div class="info-item"><span class="info-label">Marital Status</span><span class="info-val">${profile.maritalStatus || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">District</span><span class="info-val">${profile.location || 'Hong Kong'}</span></div>
+            <div class="info-item"><span class="info-label">Gender</span><span class="info-val">${profile.gender ? profile.gender.toUpperCase() : 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">Age</span><span class="info-val">${profile.age || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">Occupation</span><span class="info-val">${profile.occupation || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">MBTI</span><span class="info-val">${profile.mbti || 'N/A'}</span></div>
+          </div>
+
+          ${interestsList.length > 0 ? `
+            <div class="section-title">Interests</div>
+            <div class="tags-container">${interestsList.map(i => `<span class="tag">${i}</span>`).join('')}</div>
+          ` : ''}
+        </div>
+      `;
+
+      attachCardGestures(card);
+      deckEl.appendChild(card);
+    }
+
+    function attachCardGestures(card) {
+      let startX = 0, currentX = 0;
+      const likeStamp = card.querySelector('.stamp.like');
+      const nopeStamp = card.querySelector('.stamp.nope');
+
+      const onStart = (e) => {
+        startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        document.addEventListener(e.type.includes('touch') ? 'touchmove' : 'mousemove', onMove);
+        document.addEventListener(e.type.includes('touch') ? 'touchend' : 'mouseup', onEnd);
+      };
+
+      const onMove = (e) => {
+        currentX = (e.type.includes('touch') ? e.touches[0].clientX : e.clientX) - startX;
+        card.style.transform = `translateX(${currentX}px) rotate(${currentX * 0.05}deg)`;
+        if (currentX > 0) { likeStamp.style.opacity = Math.min(currentX / 100, 1); nopeStamp.style.opacity = 0; }
+        else { nopeStamp.style.opacity = Math.min(Math.abs(currentX) / 100, 1); likeStamp.style.opacity = 0; }
+      };
+
+      const onEnd = () => {
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        document.removeEventListener('mouseup', onEnd);
+
+        if (Math.abs(currentX) > 100) completeSwipe(card, currentX > 0);
+        else { card.style.transform = ''; likeStamp.style.opacity = 0; nopeStamp.style.opacity = 0; }
+      };
+
+      card.addEventListener('mousedown', onStart);
+      card.addEventListener('touchstart', onStart);
+    }
+
+    function handleButtonClick(isLike) {
+      const card = document.querySelector('#deck .card');
+      if (!card) return;
+      completeSwipe(card, isLike);
+    }
+
+    function completeSwipe(card, isLike) {
+      const flyX = isLike ? 500 : -500;
+      card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+      card.style.transform = `translateX(${flyX}px) rotate(${flyX * 0.05}deg)`;
+      card.style.opacity = 0;
+
+      const targetUser = activeCardProfile;
+
+      if (targetUser) {
+        const db = getUsersDB();
+        if (db[currentUsername] && db[currentUsername].profile) {
+          if (!db[currentUsername].profile.dismissed) db[currentUsername].profile.dismissed = [];
+          db[currentUsername].profile.dismissed.push(targetUser.username);
+          saveUsersDB(db);
+        }
+      }
+
+      setTimeout(() => {
+        activeCardProfile = getRandomPoolProfile();
+        renderDeck();
+        if (isLike && targetUser) handleUserLikeAction(targetUser);
+      }, 300);
+    }
+
+    /* Mutual Matching */
+    function handleUserLikeAction(targetUser) {
+      const likes = getLikesDB();
+      const myUsername = currentUsername;
+      const targetUsername = targetUser.username;
+
+      if (!likes[myUsername]) likes[myUsername] = {};
+      likes[myUsername][targetUsername] = true;
+      saveLikesDB(likes);
+
+      if (likes[targetUsername] && likes[targetUsername][myUsername]) {
+        createSharedSecretRoom(myUsername, targetUsername, targetUser);
+      }
+    }
+
+    function createSharedSecretRoom(userA_Name, userB_Name, targetProfile) {
+      const rooms = getSharedRooms();
+      const roomId = 'room_' + [userA_Name, userB_Name].sort().join('_');
+
+      let existingRoom = rooms.find(r => r.roomId === roomId);
+
+      if (!existingRoom) {
+        const db = getUsersDB();
+        const userA_Alias = db[userA_Name]?.profile?.alias || userA_Name;
+        const userB_Alias = db[userB_Name]?.profile?.alias || userB_Name;
+
+        existingRoom = {
+          roomId: roomId,
+          participants: [userA_Name, userB_Name],
+          aliases: {
+            [userA_Name]: userA_Alias,
+            [userB_Name]: userB_Alias
+          },
+          photosRevealed: {
+            [userA_Name]: false,
+            [userB_Name]: false
+          },
+          quitted: [],
+          messages: [{
+            type: 'text',
+            sender: 'system',
+            text: 'System: Both Hong Kong users matched! Welcome to your secret room.'
+          }]
+        };
+        rooms.push(existingRoom);
+        saveSharedRooms(rooms);
+      }
+
+      activeMatchedProfile = targetProfile;
+      document.getElementById('match-alias').innerText = targetProfile.alias;
+      document.getElementById('match-overlay').classList.remove('hidden');
+    }
+
+    function enterMatchedRoomDirectly() {
+      document.getElementById('match-overlay').classList.add('hidden');
+      const targetUsername = activeMatchedProfile.username;
+      const roomId = 'room_' + [currentUsername, targetUsername].sort().join('_');
+      openChatRoom(roomId);
+    }
+
+    /* Chat Rooms */
+    function renderRoomList() {
+      const container = document.getElementById('secret-room-container');
+      container.innerHTML = '';
+
+      const allRooms = getSharedRooms();
+      const userRooms = allRooms.filter(r => r.participants.includes(currentUsername) && !r.quitted.includes(currentUsername));
+
+      if (userRooms.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active secret rooms.<br>Swipe LIKE on profile cards to match!</div>`;
+        return;
+      }
+
+      userRooms.forEach(room => {
+        const partnerUsername = room.participants.find(u => u !== currentUsername);
+        const partnerAlias = room.aliases[partnerUsername] || partnerUsername;
+
+        const lastMsgObj = room.messages[room.messages.length - 1];
+        let lastMsg = 'No messages yet';
+        if (lastMsgObj) {
+          if (lastMsgObj.type === 'text') lastMsg = lastMsgObj.text;
+          else if (lastMsgObj.type === 'photo') lastMsg = '📷 Sent a photo';
+          else if (lastMsgObj.type === 'view-once') lastMsg = '🔥 View-Once Photo';
+        }
+
+        const item = document.createElement('div');
+        item.className = 'room-list-item';
+        item.innerHTML = `
+          <div>
+            <div class="room-name">${partnerAlias}</div>
+            <div class="room-sub">${lastMsg}</div>
+          </div>
+          <span style="color:#e0a96d; font-size:12px;">Open &gt;</span>
+        `;
+        item.onclick = () => openChatRoom(room.roomId);
+        container.appendChild(item);
+      });
+    }
+
+    function openChatRoom(roomId) {
+      activeRoomId = roomId;
+      const rooms = getSharedRooms();
+      const room = rooms.find(r => r.roomId === roomId);
+      if (!room) return;
+
+      const partnerUsername = room.participants.find(u => u !== currentUsername);
+      const partnerAlias = room.aliases[partnerUsername] || partnerUsername;
+
+      document.getElementById('chat-partner-name').innerText = partnerAlias;
+
+      const revealBtn = document.getElementById('btn-reveal-10s');
+      if (room.photosRevealed && room.photosRevealed[currentUsername]) {
+        revealBtn.classList.add('used');
+        revealBtn.innerText = 'Photo Expired';
+      } else {
+        revealBtn.classList.remove('used');
+        revealBtn.innerText = '👁️ Photo (10s)';
+      }
+
+      const isRoomLocked = room.quitted && room.quitted.length > 0;
+      setRoomInputDisabled(isRoomLocked);
+
+      const msgsContainer = document.getElementById('chat-messages');
+      msgsContainer.innerHTML = '';
+      room.messages.forEach(msg => renderMessageUI(msg));
+
+      document.getElementById('active-chat-view').classList.remove('hidden');
+    }
+
+    function setRoomInputDisabled(disabled) {
+      document.getElementById('message-input').disabled = disabled;
+      document.getElementById('btn-send-msg').disabled = disabled;
+      document.getElementById('btn-photo-opt').disabled = disabled;
+    }
+
+    function trigger10sPhotoReveal() {
+      const rooms = getSharedRooms();
+      const room = rooms.find(r => r.roomId === activeRoomId);
+      if (!room) return;
+
+      if (room.photosRevealed && room.photosRevealed[currentUsername]) return;
+
+      const partnerUsername = room.participants.find(u => u !== currentUsername);
+      const pool = getProfilePool();
+      const partnerPhoto = pool[partnerUsername]?.photo;
+
+      if (!partnerPhoto) {
+        alert("This user has not uploaded a valid photo.");
+        return;
+      }
+
+      const modal = document.getElementById('photo-modal');
+      const imgEl = document.getElementById('partner-photo-img');
+      const timerEl = document.getElementById('countdown-timer');
+
+      imgEl.src = partnerPhoto;
+      modal.classList.remove('hidden');
+
+      let secondsLeft = 10;
+      timerEl.innerText = `Self-destructing in ${secondsLeft}s`;
+
+      const interval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft > 0) {
+          timerEl.innerText = `Self-destructing in ${secondsLeft}s`;
+        } else {
+          clearInterval(interval);
+          modal.classList.add('hidden');
+
+          if (!room.photosRevealed) room.photosRevealed = {};
+          room.photosRevealed[currentUsername] = true;
+          saveSharedRooms(rooms);
+
+          const revealBtn = document.getElementById('btn-reveal-10s');
+          revealBtn.classList.add('used');
+          revealBtn.innerText = 'Photo Expired';
+        }
+      }, 1000);
+    }
+
+    function backToRoomList() {
+      document.getElementById('active-chat-view').classList.add('hidden');
+      switchSlide('rooms');
+    }
+
+    function quitSecretRoom() {
+      if (!activeRoomId) return;
+
+      let rooms = getSharedRooms();
+      const roomIndex = rooms.findIndex(r => r.roomId === activeRoomId);
+      if (roomIndex === -1) return;
+
+      const room = rooms[roomIndex];
+      const db = getUsersDB();
+      const myAlias = db[currentUsername]?.profile?.alias || currentUsername;
+
+      if (!room.quitted) room.quitted = [];
+
+      if (!room.quitted.includes(currentUsername)) {
+        room.quitted.push(currentUsername);
+      }
+
+      if (room.quitted.length === 1) {
+        room.messages.push({
+          type: 'text',
+          sender: 'system',
+          text: `${myAlias} quitted the room.`
+        });
+        saveSharedRooms(rooms);
+        alert("You have quitted this room.");
+      } 
+      else if (room.quitted.length >= 2) {
+        rooms.splice(roomIndex, 1);
+        saveSharedRooms(rooms);
+        alert("Both users quitted. Room permanently deleted.");
+      }
+
+      activeRoomId = null;
+      backToRoomList();
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      if (!text || !activeRoomId) return;
+
+      const rooms = getSharedRooms();
+      const room = rooms.find(r => r.roomId === activeRoomId);
+      if (!room || (room.quitted && room.quitted.length > 0)) return;
+
+      const msgObj = { type: 'text', senderUsername: currentUsername, text: text };
+      room.messages.push(msgObj);
+
+      saveSharedRooms(rooms);
+      renderMessageUI(msgObj);
+      input.value = '';
+    }
+
+    function renderMessageUI(msgObj) {
+      const msgsContainer = document.getElementById('chat-messages');
+      let isSentByMe = msgObj.senderUsername === currentUsername;
+
+      if (msgObj.sender === 'system') {
+        const sysDiv = document.createElement('div');
+        sysDiv.className = 'message system';
+        sysDiv.innerText = msgObj.text;
+        msgsContainer.appendChild(sysDiv);
+      } else if (msgObj.type === 'text') {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${isSentByMe ? 'sent' : 'received'}`;
+        msgDiv.innerText = msgObj.text;
+        msgsContainer.appendChild(msgDiv);
+      } else if (msgObj.type === 'photo') {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${isSentByMe ? 'sent' : 'received'} chat-photo-msg`;
+        msgDiv.innerHTML = `<img src="${msgObj.src}" alt="Shared photo">`;
+        msgsContainer.appendChild(msgDiv);
+      } else if (msgObj.type === 'view-once') {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = `view-once-card ${msgObj.destroyed ? 'destroyed' : ''}`;
+        cardDiv.style.alignSelf = isSentByMe ? 'flex-end' : 'flex-start';
+        
+        if (msgObj.destroyed) {
+          cardDiv.innerHTML = `<span>🔥 View-Once Photo (Self-Destructed)</span>`;
+        } else {
+          cardDiv.innerHTML = `<span>🔥 Tap to view confidential photo</span>`;
+          cardDiv.onclick = () => openViewOncePhoto(msgObj);
+        }
+        msgsContainer.appendChild(cardDiv);
+      }
+
+      msgsContainer.scrollTop = msgsContainer.scrollHeight;
+    }
+
+    function togglePhotoPopover() {
+      document.getElementById('photo-popover').classList.toggle('hidden');
+    }
+
+    function triggerFileInput(mode) {
+      selectedSendMode = mode;
+      document.getElementById('photo-popover').classList.add('hidden');
+      document.getElementById('chat-photo-input').click();
+    }
+
+    function handleChatPhotoUpload(event) {
+      const file = event.target.files[0];
+      if (!file || !activeRoomId) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const imgSrc = e.target.result;
+        const rooms = getSharedRooms();
+        const room = rooms.find(r => r.roomId === activeRoomId);
+
+        if (!room || (room.quitted && room.quitted.length > 0)) return;
+
+        let msgObj;
+        if (selectedSendMode === 'view-once') {
+          msgObj = { type: 'view-once', senderUsername: currentUsername, src: imgSrc, destroyed: false, id: Date.now() };
+        } else {
+          msgObj = { type: 'photo', senderUsername: currentUsername, src: imgSrc };
+        }
+
+        room.messages.push(msgObj);
+        saveSharedRooms(rooms);
+        renderMessageUI(msgObj);
+
+        event.target.value = '';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function openViewOncePhoto(msgObj) {
+      if (msgObj.destroyed) return;
+
+      const modal = document.getElementById('photo-modal');
+      const imgEl = document.getElementById('partner-photo-img');
+      const timerEl = document.getElementById('countdown-timer');
+
+      imgEl.src = msgObj.src;
+      modal.classList.remove('hidden');
+
+      let secondsLeft = 10;
+      timerEl.innerText = `Self-destructing in ${secondsLeft}s`;
+
+      const interval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft > 0) {
+          timerEl.innerText = `Self-destructing in ${secondsLeft}s`;
+        } else {
+          clearInterval(interval);
+          modal.classList.add('hidden');
+          msgObj.destroyed = true;
+
+          const rooms = getSharedRooms();
+          saveSharedRooms(rooms);
+
+          const msgsContainer = document.getElementById('chat-messages');
+          msgsContainer.innerHTML = '';
+          const room = rooms.find(r => r.roomId === activeRoomId);
+          if (room) room.messages.forEach(msg => renderMessageUI(msg));
+        }
+      }, 1000);
+    }
+
+    /* Profile Form & Pool Logic */
+    function loadProfileForm() {
+      const db = getUsersDB();
+      const p = db[currentUsername]?.profile || {};
+
+      document.getElementById('user-alias').value = p.alias || '';
+      document.getElementById('user-looking-for').value = p.lookingFor || '';
+      document.getElementById('user-marital').value = p.maritalStatus || '';
+      document.getElementById('user-gender').value = p.gender || '';
+      document.getElementById('user-about').value = p.about || '';
+      document.getElementById('user-age').value = p.age || '';
+      document.getElementById('user-height').value = p.height || '';
+      document.getElementById('user-ethnicity').value = p.ethnicity || '';
+      document.getElementById('user-mbti').value = p.mbti || '';
+      document.getElementById('user-occupation').value = p.occupation || '';
+      document.getElementById('user-location').value = p.location || '';
+      document.getElementById('user-degree').value = p.degree || '';
+      document.getElementById('user-language').value = p.language || '';
+      document.getElementById('user-interests').value = Array.isArray(p.interests) ? p.interests.join(', ') : (p.interests || '');
+
+      const preview = document.getElementById('my-photo-preview');
+      if (p.photo) {
+        uploadedUserPhoto = p.photo;
+        preview.src = p.photo;
+        preview.style.display = 'block';
+        document.getElementById('photo-label').innerText = "📷 Profile Photo Uploaded";
+      } else {
+        uploadedUserPhoto = null;
+        preview.style.display = 'none';
+        document.getElementById('photo-label').innerText = "📷 Upload Secret Photo * (Required)";
+      }
+    }
+
+    function previewUserPhoto(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        uploadedUserPhoto = e.target.result;
+        const preview = document.getElementById('my-photo-preview');
+        preview.src = uploadedUserPhoto;
+        preview.style.display = 'block';
+        document.getElementById('photo-label').innerText = "📷 Profile Photo Uploaded";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function saveProfile() {
+      const db = getUsersDB();
+      if (!db[currentUsername]) return;
+
+      // MANDATORY VALIDATION: PROFILE PHOTO IS STRICTLY REQUIRED
+      if (!uploadedUserPhoto) {
+        alert("Validation Required: Profile photo is mandatory. Please upload a photo to save your profile.");
+        return;
+      }
+
+      const rawInterests = document.getElementById('user-interests').value;
+      const interestsArr = rawInterests ? rawInterests.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      const updatedProfile = {
+        username: currentUsername,
+        id: db[currentUsername].profile?.id || ('usr_' + Date.now()),
+        alias: document.getElementById('user-alias').value.trim() || currentUsername,
+        lookingFor: document.getElementById('user-looking-for').value.trim(),
+        maritalStatus: document.getElementById('user-marital').value,
+        gender: document.getElementById('user-gender').value,
+        about: document.getElementById('user-about').value.trim(),
+        age: document.getElementById('user-age').value,
+        height: document.getElementById('user-height').value.trim(),
+        ethnicity: document.getElementById('user-ethnicity').value.trim(),
+        mbti: document.getElementById('user-mbti').value.trim(),
+        occupation: document.getElementById('user-occupation').value.trim(),
+        location: document.getElementById('user-location').value,
+        degree: document.getElementById('user-degree').value,
+        language: document.getElementById('user-language').value.trim(),
+        interests: interestsArr,
+        photo: uploadedUserPhoto,
+        dismissed: db[currentUsername].profile?.dismissed || []
+      };
+
+      // Save locally to user profile
+      db[currentUsername].profile = updatedProfile;
+      saveUsersDB(db);
+
+      // ADD PROFILE TO GLOBAL POOL
+      const pool = getProfilePool();
+      pool[currentUsername] = updatedProfile;
+      saveProfilePool(pool);
+
+      alert("Profile completed & successfully added to the matching pool!");
+      activeCardProfile = null;
+      switchSlide('match');
+    }
+  </script>
+</body>
+</html>
