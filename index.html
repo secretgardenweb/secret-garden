@@ -372,6 +372,12 @@
           <input type="password" id="auth-pass" placeholder="••••••••">
         </div>
 
+        <!-- NEW CONFIRM PASSWORD FIELD -->
+        <div class="form-group hidden" id="auth-confirm-pass-group">
+          <label>Confirm Password</label>
+          <input type="password" id="auth-confirm-pass" placeholder="••••••••">
+        </div>
+
         <button class="btn-primary" id="auth-submit-btn" style="margin-top:10px;" onclick="handleAuthSubmit()">Enter Secret Garden</button>
 
         <div class="auth-toggle" onclick="toggleAuthMode()">
@@ -667,6 +673,14 @@
         : "Enter your secret credentials to enter the garden.";
       document.getElementById('auth-submit-btn').innerText = isSignUp ? "Register Account" : "Enter Secret Garden";
       document.getElementById('auth-toggle-text').innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Now";
+      
+      const confirmGroup = document.getElementById('auth-confirm-pass-group');
+      if (isSignUp) {
+        confirmGroup.classList.remove('hidden');
+      } else {
+        confirmGroup.classList.add('hidden');
+        document.getElementById('auth-confirm-pass').value = '';
+      }
     }
 
     function handleAuthSubmit() {
@@ -682,6 +696,18 @@
       const lowerUsername = usernameInput.toLowerCase();
 
       if (isSignUp) {
+        const confirmPassInput = document.getElementById('auth-confirm-pass').value.trim();
+
+        if (!confirmPassInput) {
+          alert("Please enter the confirm password.");
+          return;
+        }
+
+        if (passInput !== confirmPassInput) {
+          alert("Passwords do not match. Please enter the same password again.");
+          return;
+        }
+
         let isUsernameTaken = false;
         let isPasswordTaken = false;
 
@@ -757,6 +783,7 @@
       activeCardProfile = null;
       document.getElementById('auth-username').value = '';
       document.getElementById('auth-pass').value = '';
+      document.getElementById('auth-confirm-pass').value = '';
       document.getElementById('auth-view').classList.remove('hidden');
     }
 
