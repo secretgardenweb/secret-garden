@@ -68,7 +68,7 @@
       background: rgba(8, 13, 10, 0.95);
       border-top: 1px solid rgba(62, 107, 82, 0.3);
       display: flex;
-      justify-space-around;
+      justify-content: space-around;
       align-items: center;
       z-index: 20;
     }
@@ -131,6 +131,11 @@
       text-align: center; 
       cursor: pointer; 
       margin-bottom: 8px; 
+      transition: border-color 0.3s ease;
+    }
+    .file-input-wrapper.error {
+      border: 2px dashed #ff4757 !important;
+      background: rgba(255, 71, 87, 0.1);
     }
     .file-input-wrapper input { display: none; }
     .file-label { font-size: 13px; color: #e0a96d; font-weight: 600; }
@@ -442,10 +447,15 @@
       <!-- SLIDE 3: EDIT PROFILE VIEW -->
       <div id="slide-profile" class="view hidden form-padding">
         <div class="setup-title">Edit Profile</div>
-        <div class="setup-subtitle">Complete profile to add yourself into the matching pool.</div>
+        <div class="setup-subtitle">Photo is required to save. All other profile details are optional.</div>
+
+        <!-- DYNAMIC ERROR NOTICE FOR MISSING PHOTO -->
+        <div id="profile-error-box" class="warning-box hidden">
+          ⚠️ <strong>Photo Required:</strong> You must upload a profile photo before you can save your profile and enter the matching pool.
+        </div>
 
         <!-- STRICT MANDATORY FIELD -->
-        <div class="file-input-wrapper" onclick="document.getElementById('user-photo').click()">
+        <div class="file-input-wrapper" id="photo-wrapper-box" onclick="document.getElementById('user-photo').click()">
           <div class="file-label" id="photo-label">📷 Upload Secret Photo * (Required)</div>
           <input type="file" id="user-photo" accept="image/*" onchange="previewUserPhoto(event)">
           <img id="my-photo-preview" class="photo-preview" alt="Preview">
@@ -456,18 +466,18 @@
 
         <!-- ALL OTHER FIELDS ARE OPTIONAL -->
         <div class="form-group">
-          <label>Profile Display Name (Public Alias)</label>
+          <label>Profile Display Name (Public Alias) <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
           <input type="text" id="user-alias" placeholder="e.g. #NightOwl">
         </div>
 
         <div class="form-group">
-          <label>Looking For</label>
+          <label>Looking For <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
           <input type="text" id="user-looking-for" placeholder="e.g. Serious relationship, casual chat, coffee buddy...">
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Gender</label>
+            <label>Gender <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <select id="user-gender">
               <option value="">-- Optional --</option>
               <option value="male">Male</option>
@@ -476,14 +486,14 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Age</label>
+            <label>Age <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <input type="number" id="user-age" min="18" max="99" placeholder="e.g. 26">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Marital Status</label>
+            <label>Marital Status <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <select id="user-marital">
               <option value="">-- Optional --</option>
               <option value="Single">Single</option>
@@ -495,41 +505,41 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Height (cm)</label>
+            <label>Height (cm) <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <input type="text" id="user-height" placeholder="e.g. 175 cm">
           </div>
         </div>
 
         <div class="form-group">
-          <label>About Me</label>
+          <label>About Me <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
           <textarea id="user-about" placeholder="Share your hobbies, favorite chill spots, etc..."></textarea>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Ethnicity</label>
+            <label>Ethnicity <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <input type="text" id="user-ethnicity" placeholder="e.g. Asian">
           </div>
           <div class="form-group">
-            <label>MBTI Personality</label>
+            <label>MBTI Personality <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <input type="text" id="user-mbti" placeholder="e.g. ENFP">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Occupation</label>
+            <label>Occupation <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <input type="text" id="user-occupation" placeholder="e.g. Finance / Tech">
           </div>
           <div class="form-group">
-            <label>District / Area</label>
+            <label>District / Area <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <input type="text" id="user-location" placeholder="e.g. Downtown">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Education Level</label>
+            <label>Education Level <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <select id="user-degree">
               <option value="">-- Optional --</option>
               <option>Secondary School</option>
@@ -539,13 +549,13 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Spoken Languages</label>
+            <label>Spoken Languages <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
             <input type="text" id="user-language" placeholder="e.g. English">
           </div>
         </div>
 
         <div class="form-group">
-          <label>Interests (Comma separated)</label>
+          <label>Interests (Comma separated) <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
           <input type="text" id="user-interests" placeholder="e.g. Cafe Hopping, Hiking, Nightlife, Gaming">
         </div>
 
@@ -768,7 +778,7 @@
         isLoggedIn = true;
         localStorage.setItem(SESSION_KEY, currentUsername);
 
-        alert("Account registered! Please upload a photo to activate your profile in the pool.");
+        alert("Account registered! Please upload a profile photo to complete profile setup.");
         document.getElementById('auth-view').classList.add('hidden');
         loadProfileForm();
         switchSlide('profile');
@@ -1415,6 +1425,10 @@
         preview.src = uploadedUserPhoto;
         preview.style.display = 'block';
         document.getElementById('photo-label').innerText = "📷 Profile Photo Uploaded";
+        
+        // Clear error highlighting if image loaded
+        document.getElementById('photo-wrapper-box').classList.remove('error');
+        document.getElementById('profile-error-box').classList.add('hidden');
       };
       reader.readAsDataURL(file);
     }
@@ -1425,6 +1439,9 @@
 
       // MANDATORY VALIDATION: PROFILE PHOTO IS STRICTLY REQUIRED
       if (!uploadedUserPhoto) {
+        document.getElementById('photo-wrapper-box').classList.add('error');
+        document.getElementById('profile-error-box').classList.remove('hidden');
+        document.getElementById('slide-profile').scrollTop = 0;
         alert("Validation Required: Profile photo is mandatory. Please upload a photo to save your profile.");
         return;
       }
@@ -1432,6 +1449,7 @@
       const rawInterests = document.getElementById('user-interests').value;
       const interestsArr = rawInterests ? rawInterests.split(',').map(s => s.trim()).filter(Boolean) : [];
 
+      // Optional fields default gracefully if empty
       const updatedProfile = {
         username: currentUsername,
         id: db[currentUsername].profile?.id || ('usr_' + Date.now()),
