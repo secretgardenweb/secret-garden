@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Secret Garden HK</title>
+  <title>Secret Garden</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     
@@ -68,7 +68,7 @@
       background: rgba(8, 13, 10, 0.95);
       border-top: 1px solid rgba(62, 107, 82, 0.3);
       display: flex;
-      justify-content: space-around;
+      justify-space-around;
       align-items: center;
       z-index: 20;
     }
@@ -346,7 +346,7 @@
         <svg viewBox="0 0 24 24" width="18" height="18" fill="#e0a96d">
           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
         </svg>
-        <span>SECRET GARDEN (HK)</span>
+        <span>SECRET GARDEN</span>
       </div>
       <button id="logout-btn" style="background:none; border:none; color:#8fa397; font-size:12px; cursor:pointer;" onclick="logout()">Logout</button>
     </header>
@@ -388,7 +388,7 @@
       <!-- SLIDE 1: MATCHING PLACE (Swipe Cards) -->
       <div id="slide-match" class="view hidden">
         <div id="deck-header">
-          <span style="font-size:12px; font-weight:800; color:#a4cbb5; letter-spacing:1px; text-transform:uppercase;">Discover HK Profiles</span>
+          <span style="font-size:12px; font-weight:800; color:#a4cbb5; letter-spacing:1px; text-transform:uppercase;">Discover Profiles</span>
           <button class="pref-btn" onclick="openPreferences()">⚙ Preferences</button>
         </div>
         <div id="deck-view">
@@ -441,7 +441,7 @@
 
       <!-- SLIDE 3: EDIT PROFILE VIEW -->
       <div id="slide-profile" class="view hidden form-padding">
-        <div class="setup-title">Edit HK Profile</div>
+        <div class="setup-title">Edit Profile</div>
         <div class="setup-subtitle">Complete profile to add yourself into the matching pool.</div>
 
         <!-- STRICT MANDATORY FIELD -->
@@ -457,7 +457,7 @@
         <!-- ALL OTHER FIELDS ARE OPTIONAL -->
         <div class="form-group">
           <label>Profile Display Name (Public Alias)</label>
-          <input type="text" id="user-alias" placeholder="e.g. #HK_NightOwl">
+          <input type="text" id="user-alias" placeholder="e.g. #NightOwl">
         </div>
 
         <div class="form-group">
@@ -502,13 +502,13 @@
 
         <div class="form-group">
           <label>About Me</label>
-          <textarea id="user-about" placeholder="Share your hobbies, favorite HK chill spots, etc..."></textarea>
+          <textarea id="user-about" placeholder="Share your hobbies, favorite chill spots, etc..."></textarea>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label>Ethnicity</label>
-            <input type="text" id="user-ethnicity" placeholder="e.g. Chinese">
+            <input type="text" id="user-ethnicity" placeholder="e.g. Asian">
           </div>
           <div class="form-group">
             <label>MBTI Personality</label>
@@ -522,17 +522,8 @@
             <input type="text" id="user-occupation" placeholder="e.g. Finance / Tech">
           </div>
           <div class="form-group">
-            <label>HK District / Area</label>
-            <select id="user-location">
-              <option value="">-- Optional --</option>
-              <option>Central & Western</option>
-              <option>Wan Chai</option>
-              <option>Eastern (Causeway Bay/Tin Hau)</option>
-              <option>Yau Tsim Mong (TST/Mong Kok)</option>
-              <option>Sham Shui Po</option>
-              <option>Shatin / New Territories</option>
-              <option>Discovery Bay / Islands</option>
-            </select>
+            <label>District / Area</label>
+            <input type="text" id="user-location" placeholder="e.g. Downtown">
           </div>
         </div>
 
@@ -549,7 +540,7 @@
           </div>
           <div class="form-group">
             <label>Spoken Languages</label>
-            <input type="text" id="user-language" placeholder="e.g. Cantonese, English">
+            <input type="text" id="user-language" placeholder="e.g. English">
           </div>
         </div>
 
@@ -600,7 +591,7 @@
     <!-- ONE-TIME PHOTO VIEWER MODAL -->
     <div id="photo-modal" class="hidden">
       <div class="photo-wrapper">
-        <div class="watermark" id="watermark-overlay">SECRET GARDEN HK<br>CONFIDENTIAL VIEW</div>
+        <div class="watermark" id="watermark-overlay">SECRET GARDEN<br>CONFIDENTIAL VIEW</div>
         <img id="partner-photo-img" src="" alt="Secret Reveal">
       </div>
       <div class="timer-badge" id="countdown-timer">Self-destructing in 10s</div>
@@ -635,12 +626,13 @@
     let activeCardProfile = null;
 
     // Local Storage Keys & Real-Time Sync Channel
-    const DB_KEY = 'sg_users_db_hk';
-    const POOL_KEY = 'sg_profile_pool_hk';
-    const ROOMS_KEY = 'sg_shared_secret_rooms_hk';
-    const LIKES_KEY = 'sg_user_likes_hk';
+    const DB_KEY = 'sg_users_db';
+    const POOL_KEY = 'sg_profile_pool';
+    const ROOMS_KEY = 'sg_shared_secret_rooms';
+    const LIKES_KEY = 'sg_user_likes';
+    const SESSION_KEY = 'sg_active_session';
 
-    const syncChannel = new BroadcastChannel('sg_global_sync_hk');
+    const syncChannel = new BroadcastChannel('sg_global_sync');
     syncChannel.onmessage = (event) => {
       if (event.data && event.data.type === 'PROFILE_POOL_UPDATED') {
         if (isLoggedIn && !document.getElementById('slide-match').classList.contains('hidden') && !activeCardProfile) {
@@ -663,6 +655,23 @@
 
     function getLikesDB() { return JSON.parse(localStorage.getItem(LIKES_KEY) || '{}'); }
     function saveLikesDB(likes) { localStorage.setItem(LIKES_KEY, JSON.stringify(likes)); }
+
+    // Session auto-login check on page load / refresh
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedSession = localStorage.getItem(SESSION_KEY);
+      if (savedSession) {
+        const db = getUsersDB();
+        if (db[savedSession]) {
+          currentUsername = savedSession;
+          isLoggedIn = true;
+          document.getElementById('auth-view').classList.add('hidden');
+          loadProfileForm();
+          switchSlide('match');
+          return;
+        }
+      }
+      document.getElementById('auth-view').classList.remove('hidden');
+    });
 
     /* Auth & Registration Logic */
     function toggleAuthMode() {
@@ -734,7 +743,7 @@
           profile: {
             username: usernameInput,
             id: 'usr_' + Date.now(),
-            alias: 'HK_' + usernameInput,
+            alias: usernameInput,
             lookingFor: '',
             maritalStatus: '',
             gender: '',
@@ -757,6 +766,7 @@
         saveUsersDB(db);
         currentUsername = usernameInput;
         isLoggedIn = true;
+        localStorage.setItem(SESSION_KEY, currentUsername);
 
         alert("Account registered! Please upload a photo to activate your profile in the pool.");
         document.getElementById('auth-view').classList.add('hidden');
@@ -770,6 +780,7 @@
 
         currentUsername = usernameInput;
         isLoggedIn = true;
+        localStorage.setItem(SESSION_KEY, currentUsername);
 
         document.getElementById('auth-view').classList.add('hidden');
         loadProfileForm();
@@ -781,6 +792,7 @@
       isLoggedIn = false;
       currentUsername = null;
       activeCardProfile = null;
+      localStorage.removeItem(SESSION_KEY);
       document.getElementById('auth-username').value = '';
       document.getElementById('auth-pass').value = '';
       document.getElementById('auth-confirm-pass').value = '';
@@ -912,7 +924,7 @@
         <div class="stamp like">LIKE</div>
         <div class="stamp nope">NOPE</div>
         <div class="card-header">
-          <div class="user-alias">${profile.alias || 'Anonymous HK User'}</div>
+          <div class="user-alias">${profile.alias || 'Anonymous User'}</div>
           <div class="user-badge">Discretion Guaranteed</div>
         </div>
         <div class="card-body">
@@ -934,7 +946,7 @@
           <div class="section-title">Overview</div>
           <div class="grid-info">
             <div class="info-item"><span class="info-label">Marital Status</span><span class="info-val">${profile.maritalStatus || 'N/A'}</span></div>
-            <div class="info-item"><span class="info-label">District</span><span class="info-val">${profile.location || 'Hong Kong'}</span></div>
+            <div class="info-item"><span class="info-label">District</span><span class="info-val">${profile.location || 'N/A'}</span></div>
             <div class="info-item"><span class="info-label">Gender</span><span class="info-val">${profile.gender ? profile.gender.toUpperCase() : 'N/A'}</span></div>
             <div class="info-item"><span class="info-label">Age</span><span class="info-val">${profile.age || 'N/A'}</span></div>
             <div class="info-item"><span class="info-label">Occupation</span><span class="info-val">${profile.occupation || 'N/A'}</span></div>
@@ -1055,7 +1067,7 @@
           messages: [{
             type: 'text',
             sender: 'system',
-            text: 'System: Both Hong Kong users matched! Welcome to your secret room.'
+            text: 'System: Both users matched! Welcome to your secret room.'
           }]
         };
         rooms.push(existingRoom);
@@ -1433,7 +1445,7 @@
         ethnicity: document.getElementById('user-ethnicity').value.trim(),
         mbti: document.getElementById('user-mbti').value.trim(),
         occupation: document.getElementById('user-occupation').value.trim(),
-        location: document.getElementById('user-location').value,
+        location: document.getElementById('user-location').value.trim(),
         degree: document.getElementById('user-degree').value,
         language: document.getElementById('user-language').value.trim(),
         interests: interestsArr,
@@ -1452,6 +1464,8 @@
 
       alert("Profile completed & successfully added to the matching pool!");
       activeCardProfile = null;
+      
+      // Redirect back to the matching slide upon successful save
       switchSlide('match');
     }
   </script>
