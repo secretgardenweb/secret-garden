@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Secret Garden</title>
+  <!-- Supabase JS Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     
@@ -221,7 +223,7 @@
       padding: 16px;
       border-bottom: 1px solid rgba(62, 107, 82, 0.2);
       display: flex;
-      justify-content: space-between;
+      justify-between: space-between;
       align-items: center;
       cursor: pointer;
       transition: background 0.2s;
@@ -373,7 +375,6 @@
           <input type="password" id="auth-pass" placeholder="••••••••">
         </div>
 
-        <!-- NEW CONFIRM PASSWORD FIELD -->
         <div class="form-group hidden" id="auth-confirm-pass-group">
           <label>Confirm Password</label>
           <input type="password" id="auth-confirm-pass" placeholder="••••••••">
@@ -445,12 +446,10 @@
         <div class="setup-title">Edit Profile</div>
         <div class="setup-subtitle">Photo is required to save. All other profile details are optional.</div>
 
-        <!-- DYNAMIC ERROR NOTICE FOR MISSING PHOTO -->
         <div id="profile-error-box" class="warning-box hidden">
           ⚠️ <strong>Photo Required:</strong> You must upload a profile photo before you can save your profile and enter the matching pool.
         </div>
 
-        <!-- STRICT MANDATORY FIELD -->
         <div class="file-input-wrapper" id="photo-wrapper-box" onclick="document.getElementById('user-photo').click()">
           <div class="file-label" id="photo-label">📷 Upload Secret Photo * (Required)</div>
           <input type="file" id="user-photo" accept="image/*" onchange="previewUserPhoto(event)">
@@ -460,7 +459,6 @@
           🔒 <strong>Confidentiality Notice:</strong> Profile photos are strictly required to activate matching, but stay hidden until revealed inside a secret room.
         </div>
 
-        <!-- ALL OTHER FIELDS ARE OPTIONAL -->
         <div class="form-group">
           <label>Profile Display Name (Public Alias) <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
           <input type="text" id="user-alias" placeholder="e.g. #NightOwl">
@@ -555,7 +553,7 @@
           <input type="text" id="user-interests" placeholder="e.g. Cafe Hopping, Hiking, Nightlife, Gaming">
         </div>
 
-        <button class="btn-primary" style="margin-top:12px; margin-bottom: 24px;" onclick="saveProfile()">Save & Join Matching Pool</button>
+        <button class="btn-primary" id="save-profile-btn" style="margin-top:12px; margin-bottom: 24px;" onclick="saveProfile()">Save & Join Matching Pool</button>
       </div>
 
       <!-- ACTIVE CHAT VIEW -->
@@ -621,40 +619,30 @@
   </div>
 
   <script>
+    // 1. Initialize Supabase Client
+    const SUPABASE_URL = 'https://jcgzfxwlkiaqgawvulyi.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZ3pmeHdsa2lhcWdhd3Z1bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTU1MzksImV4cCI6MjEwMzY3MTUzOX0.7hVa_co1U_3sawR5YFf_t1GwIz6-DDk6y0jeWVBy_Kc';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     let isSignUp = false;
     let isLoggedIn = false;
     let currentEmail = null;
+    let currentUserId = null;
     let activeRoomId = null;
     let activeMatchedProfile = null;
+    let selectedFileToUpload = null;
     let uploadedUserPhoto = null;
     let selectedSendMode = 'normal';
     let selectedGenderPref = 'any';
     let activeCardProfile = null;
 
-    // Local Storage Keys & Real-Time Sync Channel
+    // Local Data Storage Keys for non-profile interactions
     const DB_KEY = 'sg_users_db';
-    const POOL_KEY = 'sg_profile_pool';
     const ROOMS_KEY = 'sg_shared_secret_rooms';
     const LIKES_KEY = 'sg_user_likes';
-    const SESSION_KEY = 'sg_active_session';
-
-    const syncChannel = new BroadcastChannel('sg_global_sync');
-    syncChannel.onmessage = (event) => {
-      if (event.data && event.data.type === 'PROFILE_POOL_UPDATED') {
-        if (isLoggedIn && !document.getElementById('slide-match').classList.contains('hidden') && !activeCardProfile) {
-          renderDeck();
-        }
-      }
-    };
 
     function getUsersDB() { return JSON.parse(localStorage.getItem(DB_KEY) || '{}'); }
     function saveUsersDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
-
-    function getProfilePool() { return JSON.parse(localStorage.getItem(POOL_KEY) || '{}'); }
-    function saveProfilePool(pool) { 
-      localStorage.setItem(POOL_KEY, JSON.stringify(pool)); 
-      syncChannel.postMessage({ type: 'PROFILE_POOL_UPDATED' });
-    }
 
     function getSharedRooms() { return JSON.parse(localStorage.getItem(ROOMS_KEY) || '[]'); }
     function saveSharedRooms(rooms) { localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms)); }
@@ -662,24 +650,26 @@
     function getLikesDB() { return JSON.parse(localStorage.getItem(LIKES_KEY) || '{}'); }
     function saveLikesDB(likes) { localStorage.setItem(LIKES_KEY, JSON.stringify(likes)); }
 
-    // Session auto-login check on page load / refresh
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedSession = localStorage.getItem(SESSION_KEY);
-      if (savedSession) {
-        const db = getUsersDB();
-        if (db[savedSession]) {
-          currentEmail = savedSession;
+    // 2. Supabase Auth State Change Listener & Auto-Login
+    window.addEventListener('DOMContentLoaded', async () => {
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (session && session.user) {
+          currentEmail = session.user.email.toLowerCase();
+          currentUserId = session.user.id;
           isLoggedIn = true;
           document.getElementById('auth-view').classList.add('hidden');
           loadProfileForm();
           switchSlide('match');
-          return;
+        } else {
+          isLoggedIn = false;
+          currentEmail = null;
+          currentUserId = null;
+          document.getElementById('auth-view').classList.remove('hidden');
         }
-      }
-      document.getElementById('auth-view').classList.remove('hidden');
+      });
     });
 
-    /* Auth & Registration Logic */
+    /* Auth UI Toggle */
     function toggleAuthMode() {
       isSignUp = !isSignUp;
       document.getElementById('auth-title').innerText = isSignUp ? "Create Account" : "Sign In";
@@ -698,17 +688,14 @@
       }
     }
 
-    function handleAuthSubmit() {
+    async function handleAuthSubmit() {
       const emailInput = document.getElementById('auth-email').value.trim();
       const passInput = document.getElementById('auth-pass').value.trim();
-      const db = getUsersDB();
 
       if (!emailInput || !passInput) {
         alert("Please enter both Email Address and Password.");
         return;
       }
-
-      const lowerEmail = emailInput.toLowerCase();
 
       if (isSignUp) {
         const confirmPassInput = document.getElementById('auth-confirm-pass').value.trim();
@@ -723,75 +710,38 @@
           return;
         }
 
-        let isEmailTaken = false;
+        const { data, error } = await supabase.auth.signUp({
+          email: emailInput,
+          password: passInput,
+        });
 
-        for (let userKey in db) {
-          if (userKey.toLowerCase() === lowerEmail) isEmailTaken = true;
-        }
-
-        if (isEmailTaken) {
-          alert("Registration Failed: This Email Address is already registered. Please sign in or use another email.");
+        if (error) {
+          alert("Registration Failed: " + error.message);
           return;
         }
 
-        // Default display name (alias) extracts portion before '@'
-        const defaultAlias = emailInput.split('@')[0] || 'Anonymous';
-
-        db[lowerEmail] = {
-          pass: passInput,
-          profile: {
-            username: lowerEmail,
-            id: 'usr_' + Date.now(),
-            alias: defaultAlias,
-            lookingFor: '',
-            maritalStatus: '',
-            gender: '',
-            about: '',
-            age: '',
-            height: '',
-            ethnicity: '',
-            occupation: '',
-            location: '',
-            degree: '',
-            mbti: '',
-            language: '',
-            interests: [],
-            photo: '',
-            dismissed: []
-          },
-          preferences: { gender: 'any', minAge: 18, maxAge: 99 }
-        };
-
-        saveUsersDB(db);
-        currentEmail = lowerEmail;
-        isLoggedIn = true;
-        localStorage.setItem(SESSION_KEY, currentEmail);
-
-        alert("Account registered! Please upload a profile photo to complete profile setup.");
-        document.getElementById('auth-view').classList.add('hidden');
-        loadProfileForm();
-        switchSlide('profile');
+        alert("Account registered! Check your email to verify if required, or sign in.");
       } else {
-        if (!db[lowerEmail] || db[lowerEmail].pass !== passInput) {
-          alert("Invalid Email Address or Password.");
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: emailInput,
+          password: passInput,
+        });
+
+        if (error) {
+          alert("Sign In Failed: " + error.message);
           return;
         }
-
-        currentEmail = lowerEmail;
-        isLoggedIn = true;
-        localStorage.setItem(SESSION_KEY, currentEmail);
-
-        document.getElementById('auth-view').classList.add('hidden');
-        loadProfileForm();
-        switchSlide('match');
       }
     }
 
-    function logout() {
+    async function logout() {
+      const { error } = await supabase.auth.signOut();
+      if (error) console.error("Logout Error:", error.message);
+
       isLoggedIn = false;
       currentEmail = null;
+      currentUserId = null;
       activeCardProfile = null;
-      localStorage.removeItem(SESSION_KEY);
       document.getElementById('auth-email').value = '';
       document.getElementById('auth-pass').value = '';
       document.getElementById('auth-confirm-pass').value = '';
@@ -852,62 +802,92 @@
       if (minAge > maxAge) minAge = maxAge;
 
       const db = getUsersDB();
-      if (db[currentEmail]) {
-        db[currentEmail].preferences = { gender: selectedGenderPref, minAge: minAge, maxAge: maxAge };
-        saveUsersDB(db);
-      }
+      if (!db[currentEmail]) db[currentEmail] = {};
+      db[currentEmail].preferences = { gender: selectedGenderPref, minAge: minAge, maxAge: maxAge };
+      saveUsersDB(db);
 
       activeCardProfile = null;
       switchSlide('match');
     }
 
-    /* Fetch Next Random Profile from Global Pool */
-    function getRandomPoolProfile() {
-      const pool = getProfilePool();
+    /* STEP 3: Fetch Real Profiles Direct from Supabase Database for Swiping */
+    async function getRandomPoolProfile() {
+      if (!currentEmail || !currentUserId) return null;
+
       const db = getUsersDB();
       const myData = db[currentEmail] || {};
-      const myProfile = myData.profile || {};
-      const dismissedList = myProfile.dismissed || [];
+      const dismissedList = myData.profile?.dismissed || [];
       const prefs = myData.preferences || { gender: 'any', minAge: 18, maxAge: 99 };
 
-      const eligibleProfiles = [];
+      // Build query from Supabase database
+      let query = supabase.from('profiles').select('*').neq('id', currentUserId);
 
-      for (let usrKey in pool) {
-        if (usrKey !== currentEmail) {
-          const targetProf = pool[usrKey];
-          if (targetProf && targetProf.photo) {
-            if (dismissedList.includes(usrKey)) continue;
-
-            if (prefs.gender !== 'any' && targetProf.gender) {
-              if (targetProf.gender.toLowerCase() !== prefs.gender.toLowerCase()) continue;
-            }
-
-            if (targetProf.age) {
-              const ageNum = parseInt(targetProf.age);
-              if (ageNum < prefs.minAge || ageNum > prefs.maxAge) continue;
-            }
-
-            eligibleProfiles.push(targetProf);
-          }
-        }
+      if (prefs.gender !== 'any') {
+        query = query.ilike('gender', prefs.gender);
       }
 
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching profiles from Supabase:', error.message);
+        return null;
+      }
+
+      if (!data || data.length === 0) return null;
+
+      // Filter local dismissals & age preferences
+      const eligibleProfiles = data.filter(targetProf => {
+        if (!targetProf.photo_url) return false;
+        if (dismissedList.includes(targetProf.username)) return false;
+
+        if (targetProf.age) {
+          const ageNum = parseInt(targetProf.age);
+          if (ageNum < prefs.minAge || ageNum > prefs.maxAge) return false;
+        }
+
+        return true;
+      });
+
       if (eligibleProfiles.length === 0) return null;
+
       const randomIndex = Math.floor(Math.random() * eligibleProfiles.length);
-      return eligibleProfiles[randomIndex];
+      const chosen = eligibleProfiles[randomIndex];
+
+      // Format back to app profile format
+      return {
+        id: chosen.id,
+        username: chosen.username,
+        alias: chosen.alias || 'Anonymous User',
+        lookingFor: chosen.looking_for || '',
+        maritalStatus: chosen.marital_status || '',
+        gender: chosen.gender || '',
+        about: chosen.about || '',
+        age: chosen.age || '',
+        height: chosen.height || '',
+        ethnicity: chosen.ethnicity || '',
+        mbti: chosen.mbti || '',
+        occupation: chosen.occupation || '',
+        location: chosen.location || '',
+        degree: chosen.degree || '',
+        language: chosen.language || '',
+        interests: chosen.interests || [],
+        photo: chosen.photo_url
+      };
     }
 
     /* Render Cards Deck */
-    function renderDeck() {
+    async function renderDeck() {
       const deckEl = document.getElementById('deck');
+      deckEl.innerHTML = '<div style="text-align:center; color:#8fa397; margin-top:140px;">Searching for secret profiles...</div>';
+
+      if (!activeCardProfile) {
+        activeCardProfile = await getRandomPoolProfile();
+      }
+
       deckEl.innerHTML = '';
 
       if (!activeCardProfile) {
-        activeCardProfile = getRandomPoolProfile();
-      }
-
-      if (!activeCardProfile) {
-        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the pool right now.<br><br>Adjust your Preferences or check back soon!</div>`;
+        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the garden right now.<br><br>Adjust your Preferences or check back soon!</div>`;
         return;
       }
 
@@ -1001,7 +981,7 @@
       completeSwipe(card, isLike);
     }
 
-    function completeSwipe(card, isLike) {
+    async function completeSwipe(card, isLike) {
       const flyX = isLike ? 500 : -500;
       card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
       card.style.transform = `translateX(${flyX}px) rotate(${flyX * 0.05}deg)`;
@@ -1011,15 +991,16 @@
 
       if (targetUser) {
         const db = getUsersDB();
-        if (db[currentEmail] && db[currentEmail].profile) {
-          if (!db[currentEmail].profile.dismissed) db[currentEmail].profile.dismissed = [];
-          db[currentEmail].profile.dismissed.push(targetUser.username);
-          saveUsersDB(db);
-        }
+        if (!db[currentEmail]) db[currentEmail] = {};
+        if (!db[currentEmail].profile) db[currentEmail].profile = {};
+        if (!db[currentEmail].profile.dismissed) db[currentEmail].profile.dismissed = [];
+        
+        db[currentEmail].profile.dismissed.push(targetUser.username);
+        saveUsersDB(db);
       }
 
-      setTimeout(() => {
-        activeCardProfile = getRandomPoolProfile();
+      setTimeout(async () => {
+        activeCardProfile = await getRandomPoolProfile();
         renderDeck();
         if (isLike && targetUser) handleUserLikeAction(targetUser);
       }, 300);
@@ -1160,7 +1141,7 @@
       document.getElementById('btn-photo-opt').disabled = disabled;
     }
 
-    function trigger10sPhotoReveal() {
+    async function trigger10sPhotoReveal() {
       const rooms = getSharedRooms();
       const room = rooms.find(r => r.roomId === activeRoomId);
       if (!room) return;
@@ -1168,8 +1149,15 @@
       if (room.photosRevealed && room.photosRevealed[currentEmail]) return;
 
       const partnerEmail = room.participants.find(u => u !== currentEmail);
-      const pool = getProfilePool();
-      const partnerPhoto = pool[partnerEmail]?.photo;
+
+      // Fetch partner photo URL from Supabase
+      const { data: partnerData, error } = await supabase
+        .from('profiles')
+        .select('photo_url')
+        .eq('username', partnerEmail)
+        .maybeSingle();
+
+      const partnerPhoto = partnerData ? partnerData.photo_url : null;
 
       if (!partnerPhoto) {
         alert("This user has not uploaded a valid photo.");
@@ -1370,36 +1358,45 @@
       }, 1000);
     }
 
-    /* Profile Form & Pool Logic */
-    function loadProfileForm() {
-      const db = getUsersDB();
-      const p = db[currentEmail]?.profile || {};
+    /* Profile Loading */
+    async function loadProfileForm() {
+      if (!currentEmail || !currentUserId) return;
 
-      document.getElementById('user-alias').value = p.alias || '';
-      document.getElementById('user-looking-for').value = p.lookingFor || '';
-      document.getElementById('user-marital').value = p.maritalStatus || '';
-      document.getElementById('user-gender').value = p.gender || '';
-      document.getElementById('user-about').value = p.about || '';
-      document.getElementById('user-age').value = p.age || '';
-      document.getElementById('user-height').value = p.height || '';
-      document.getElementById('user-ethnicity').value = p.ethnicity || '';
-      document.getElementById('user-mbti').value = p.mbti || '';
-      document.getElementById('user-occupation').value = p.occupation || '';
-      document.getElementById('user-location').value = p.location || '';
-      document.getElementById('user-degree').value = p.degree || '';
-      document.getElementById('user-language').value = p.language || '';
-      document.getElementById('user-interests').value = Array.isArray(p.interests) ? p.interests.join(', ') : (p.interests || '');
+      // Load profile directly from Supabase Database
+      const { data: p, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUserId)
+        .maybeSingle();
 
-      const preview = document.getElementById('my-photo-preview');
-      if (p.photo) {
-        uploadedUserPhoto = p.photo;
-        preview.src = p.photo;
-        preview.style.display = 'block';
-        document.getElementById('photo-label').innerText = "📷 Profile Photo Uploaded";
-      } else {
-        uploadedUserPhoto = null;
-        preview.style.display = 'none';
-        document.getElementById('photo-label').innerText = "📷 Upload Secret Photo * (Required)";
+      if (error) {
+        console.error('Error loading profile:', error.message);
+        return;
+      }
+
+      if (p) {
+        document.getElementById('user-alias').value = p.alias || '';
+        document.getElementById('user-looking-for').value = p.looking_for || '';
+        document.getElementById('user-marital').value = p.marital_status || '';
+        document.getElementById('user-gender').value = p.gender || '';
+        document.getElementById('user-about').value = p.about || '';
+        document.getElementById('user-age').value = p.age || '';
+        document.getElementById('user-height').value = p.height || '';
+        document.getElementById('user-ethnicity').value = p.ethnicity || '';
+        document.getElementById('user-mbti').value = p.mbti || '';
+        document.getElementById('user-occupation').value = p.occupation || '';
+        document.getElementById('user-location').value = p.location || '';
+        document.getElementById('user-degree').value = p.degree || '';
+        document.getElementById('user-language').value = p.language || '';
+        document.getElementById('user-interests').value = Array.isArray(p.interests) ? p.interests.join(', ') : (p.interests || '');
+
+        const preview = document.getElementById('my-photo-preview');
+        if (p.photo_url) {
+          uploadedUserPhoto = p.photo_url;
+          preview.src = p.photo_url;
+          preview.style.display = 'block';
+          document.getElementById('photo-label').innerText = "📷 Profile Photo Uploaded";
+        }
       }
     }
 
@@ -1407,27 +1404,25 @@
       const file = event.target.files[0];
       if (!file) return;
 
+      selectedFileToUpload = file;
       const reader = new FileReader();
       reader.onload = function(e) {
-        uploadedUserPhoto = e.target.result;
         const preview = document.getElementById('my-photo-preview');
-        preview.src = uploadedUserPhoto;
+        preview.src = e.target.result;
         preview.style.display = 'block';
-        document.getElementById('photo-label').innerText = "📷 Profile Photo Uploaded";
+        document.getElementById('photo-label').innerText = "📷 Profile Photo Selected";
         
-        // Clear error highlighting if image loaded
         document.getElementById('photo-wrapper-box').classList.remove('error');
         document.getElementById('profile-error-box').classList.add('hidden');
       };
       reader.readAsDataURL(file);
     }
 
-    function saveProfile() {
-      const db = getUsersDB();
-      if (!db[currentEmail]) return;
+    /* STEP 2: Upload Photo to Supabase Storage & Save Profile to Supabase Database */
+    async function saveProfile() {
+      if (!currentEmail || !currentUserId) return;
 
-      // MANDATORY VALIDATION: PROFILE PHOTO IS STRICTLY REQUIRED
-      if (!uploadedUserPhoto) {
+      if (!selectedFileToUpload && !uploadedUserPhoto) {
         document.getElementById('photo-wrapper-box').classList.add('error');
         document.getElementById('profile-error-box').classList.remove('hidden');
         document.getElementById('slide-profile').scrollTop = 0;
@@ -1435,45 +1430,86 @@
         return;
       }
 
-      const rawInterests = document.getElementById('user-interests').value;
-      const interestsArr = rawInterests ? rawInterests.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const saveBtn = document.getElementById('save-profile-btn');
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Saving Profile...";
 
-      // Optional fields default gracefully if empty
-      const updatedProfile = {
-        username: currentEmail,
-        id: db[currentEmail].profile?.id || ('usr_' + Date.now()),
-        alias: document.getElementById('user-alias').value.trim() || currentEmail.split('@')[0],
-        lookingFor: document.getElementById('user-looking-for').value.trim(),
-        maritalStatus: document.getElementById('user-marital').value,
-        gender: document.getElementById('user-gender').value,
-        about: document.getElementById('user-about').value.trim(),
-        age: document.getElementById('user-age').value,
-        height: document.getElementById('user-height').value.trim(),
-        ethnicity: document.getElementById('user-ethnicity').value.trim(),
-        mbti: document.getElementById('user-mbti').value.trim(),
-        occupation: document.getElementById('user-occupation').value.trim(),
-        location: document.getElementById('user-location').value.trim(),
-        degree: document.getElementById('user-degree').value,
-        language: document.getElementById('user-language').value.trim(),
-        interests: interestsArr,
-        photo: uploadedUserPhoto,
-        dismissed: db[currentEmail].profile?.dismissed || []
-      };
+      let photoPublicUrl = uploadedUserPhoto;
 
-      // Save locally to user profile
-      db[currentEmail].profile = updatedProfile;
-      saveUsersDB(db);
+      try {
+        // 1. Upload File to Supabase Storage if a new file is chosen
+        if (selectedFileToUpload) {
+          const fileExt = selectedFileToUpload.name.split('.').pop();
+          const filePath = `${currentUserId}/profile.${fileExt}`;
 
-      // ADD PROFILE TO GLOBAL POOL
-      const pool = getProfilePool();
-      pool[currentEmail] = updatedProfile;
-      saveProfilePool(pool);
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, selectedFileToUpload, { upsert: true });
 
-      alert("Profile completed & successfully added to the matching pool!");
-      activeCardProfile = null;
-      
-      // Redirect back to the matching slide upon successful save
-      switchSlide('match');
+          if (uploadError) throw uploadError;
+
+          // Retrieve public photo URL
+          const { data: publicUrlData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+
+          photoPublicUrl = publicUrlData.publicUrl;
+        }
+
+        // 2. Prepare Profile Payload
+        const rawInterests = document.getElementById('user-interests').value;
+        const interestsArr = rawInterests ? rawInterests.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+        const profilePayload = {
+          id: currentUserId,
+          username: currentEmail,
+          alias: document.getElementById('user-alias').value.trim() || currentEmail.split('@')[0],
+          looking_for: document.getElementById('user-looking-for').value.trim(),
+          marital_status: document.getElementById('user-marital').value,
+          gender: document.getElementById('user-gender').value,
+          about: document.getElementById('user-about').value.trim(),
+          age: document.getElementById('user-age').value ? parseInt(document.getElementById('user-age').value) : null,
+          height: document.getElementById('user-height').value.trim(),
+          ethnicity: document.getElementById('user-ethnicity').value.trim(),
+          mbti: document.getElementById('user-mbti').value.trim(),
+          occupation: document.getElementById('user-occupation').value.trim(),
+          location: document.getElementById('user-location').value.trim(),
+          degree: document.getElementById('user-degree').value,
+          language: document.getElementById('user-language').value.trim(),
+          interests: interestsArr,
+          photo_url: photoPublicUrl
+        };
+
+        // 3. Upsert Profile into Supabase Database
+        const { error: dbError } = await supabase
+          .from('profiles')
+          .upsert(profilePayload);
+
+        if (dbError) throw dbError;
+
+        uploadedUserPhoto = photoPublicUrl;
+        selectedFileToUpload = null;
+
+        // Keep local profile tracking synced
+        const db = getUsersDB();
+        if (!db[currentEmail]) db[currentEmail] = {};
+        db[currentEmail].profile = {
+          alias: profilePayload.alias,
+          photo: photoPublicUrl,
+          dismissed: db[currentEmail]?.profile?.dismissed || []
+        };
+        saveUsersDB(db);
+
+        alert("Profile completed & successfully saved to Supabase!");
+        activeCardProfile = null;
+        switchSlide('match');
+
+      } catch (err) {
+        alert("Failed to save profile: " + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Save & Join Matching Pool";
+      }
     }
   </script>
 </body>
