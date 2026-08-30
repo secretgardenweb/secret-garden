@@ -145,7 +145,7 @@
     .photo-preview { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin: 10px auto 0; display: none; border: 2px solid #e0a96d; }
 
     #auth-view { z-index: 90; background: #080d0a; justify-content: center; }
-    .auth-toggle { text-align: center; margin-top: 16px; font-size: 13px; color: #8fa397; cursor: pointer; text-decoration: underline; }
+    .auth-toggle { text-align: center; margin-top: 16px; font-size: 13px; color: #8fa397; cursor: pointer; text-decoration: underline; display: inline-block; width: 100%; }
 
     #deck-header { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 12px 16px 0; }
     .pref-btn { background: rgba(224, 169, 109, 0.15); border: 1px solid #e0a96d; color: #e0a96d; border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
@@ -669,22 +669,30 @@
       });
     });
 
-    /* Auth UI Toggle */
+    /* Auth UI Toggle - FIXED */
     function toggleAuthMode() {
       isSignUp = !isSignUp;
-      document.getElementById('auth-title').innerText = isSignUp ? "Create Account" : "Sign In";
-      document.getElementById('auth-subtitle').innerText = isSignUp 
+
+      const titleEl = document.getElementById('auth-title');
+      const subtitleEl = document.getElementById('auth-subtitle');
+      const submitBtn = document.getElementById('auth-submit-btn');
+      const toggleText = document.getElementById('auth-toggle-text');
+      const confirmGroup = document.getElementById('auth-confirm-pass-group');
+
+      if (titleEl) titleEl.innerText = isSignUp ? "Create Account" : "Sign In";
+      if (subtitleEl) subtitleEl.innerText = isSignUp 
         ? "Register with a valid Email and Password." 
         : "Enter your secret credentials to enter the garden.";
-      document.getElementById('auth-submit-btn').innerText = isSignUp ? "Register Account" : "Enter Secret Garden";
-      document.getElementById('auth-toggle-text').innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Now";
-      
-      const confirmGroup = document.getElementById('auth-confirm-pass-group');
-      if (isSignUp) {
-        confirmGroup.classList.remove('hidden');
-      } else {
-        confirmGroup.classList.add('hidden');
-        document.getElementById('auth-confirm-pass').value = '';
+      if (submitBtn) submitBtn.innerText = isSignUp ? "Register Account" : "Enter Secret Garden";
+      if (toggleText) toggleText.innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Now";
+
+      if (confirmGroup) {
+        if (isSignUp) {
+          confirmGroup.classList.remove('hidden');
+        } else {
+          confirmGroup.classList.add('hidden');
+          document.getElementById('auth-confirm-pass').value = '';
+        }
       }
     }
 
