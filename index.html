@@ -68,7 +68,7 @@
       background: rgba(8, 13, 10, 0.95);
       border-top: 1px solid rgba(62, 107, 82, 0.3);
       display: flex;
-      justify-content: space-around;
+      justify-around: space-around;
       align-items: center;
       z-index: 20;
     }
@@ -363,13 +363,9 @@
         <div class="setup-title" id="auth-title">Sign In</div>
         <div class="setup-subtitle" id="auth-subtitle">Enter your secret credentials to enter the garden.</div>
 
-        <div class="warning-box">
-          ⚠️ <strong>SECURITY WARNING:</strong> Your account is completely anonymous. If you forget your User Name or Password, <strong>there is no way to recover your account</strong>.
-        </div>
-
         <div class="form-group">
-          <label>User Name (Account ID)</label>
-          <input type="text" id="auth-username" placeholder="Enter user name">
+          <label>Email Address</label>
+          <input type="email" id="auth-email" placeholder="name@example.com">
         </div>
 
         <div class="form-group">
@@ -618,7 +614,7 @@
         Secret Rooms
       </button>
       <button class="nav-btn" id="tab-profile" onclick="switchSlide('profile')">
-        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
         Profile
       </button>
     </nav>
@@ -627,7 +623,7 @@
   <script>
     let isSignUp = false;
     let isLoggedIn = false;
-    let currentUsername = null;
+    let currentEmail = null;
     let activeRoomId = null;
     let activeMatchedProfile = null;
     let uploadedUserPhoto = null;
@@ -672,7 +668,7 @@
       if (savedSession) {
         const db = getUsersDB();
         if (db[savedSession]) {
-          currentUsername = savedSession;
+          currentEmail = savedSession;
           isLoggedIn = true;
           document.getElementById('auth-view').classList.add('hidden');
           loadProfileForm();
@@ -688,7 +684,7 @@
       isSignUp = !isSignUp;
       document.getElementById('auth-title').innerText = isSignUp ? "Create Account" : "Sign In";
       document.getElementById('auth-subtitle').innerText = isSignUp 
-        ? "Register with a unique User Name and Password." 
+        ? "Register with a valid Email and Password." 
         : "Enter your secret credentials to enter the garden.";
       document.getElementById('auth-submit-btn').innerText = isSignUp ? "Register Account" : "Enter Secret Garden";
       document.getElementById('auth-toggle-text').innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Now";
@@ -703,16 +699,16 @@
     }
 
     function handleAuthSubmit() {
-      const usernameInput = document.getElementById('auth-username').value.trim();
+      const emailInput = document.getElementById('auth-email').value.trim();
       const passInput = document.getElementById('auth-pass').value.trim();
       const db = getUsersDB();
 
-      if (!usernameInput || !passInput) {
-        alert("Please enter both User Name and Password.");
+      if (!emailInput || !passInput) {
+        alert("Please enter both Email Address and Password.");
         return;
       }
 
-      const lowerUsername = usernameInput.toLowerCase();
+      const lowerEmail = emailInput.toLowerCase();
 
       if (isSignUp) {
         const confirmPassInput = document.getElementById('auth-confirm-pass').value.trim();
@@ -727,33 +723,26 @@
           return;
         }
 
-        let isUsernameTaken = false;
-        let isPasswordTaken = false;
+        let isEmailTaken = false;
 
         for (let userKey in db) {
-          if (userKey.toLowerCase() === lowerUsername) isUsernameTaken = true;
-          if (db[userKey].pass === passInput) isPasswordTaken = true;
+          if (userKey.toLowerCase() === lowerEmail) isEmailTaken = true;
         }
 
-        if (isUsernameTaken && isPasswordTaken) {
-          alert("Registration Failed: Both this User Name and Password are already in use. Please change both.");
-          return;
-        }
-        if (isUsernameTaken) {
-          alert("Registration Failed: User Name taken. Please select another User Name.");
-          return;
-        }
-        if (isPasswordTaken) {
-          alert("Registration Failed: Password taken. Please select another Password.");
+        if (isEmailTaken) {
+          alert("Registration Failed: This Email Address is already registered. Please sign in or use another email.");
           return;
         }
 
-        db[usernameInput] = {
+        // Default display name (alias) extracts portion before '@'
+        const defaultAlias = emailInput.split('@')[0] || 'Anonymous';
+
+        db[lowerEmail] = {
           pass: passInput,
           profile: {
-            username: usernameInput,
+            username: lowerEmail,
             id: 'usr_' + Date.now(),
-            alias: usernameInput,
+            alias: defaultAlias,
             lookingFor: '',
             maritalStatus: '',
             gender: '',
@@ -774,23 +763,23 @@
         };
 
         saveUsersDB(db);
-        currentUsername = usernameInput;
+        currentEmail = lowerEmail;
         isLoggedIn = true;
-        localStorage.setItem(SESSION_KEY, currentUsername);
+        localStorage.setItem(SESSION_KEY, currentEmail);
 
         alert("Account registered! Please upload a profile photo to complete profile setup.");
         document.getElementById('auth-view').classList.add('hidden');
         loadProfileForm();
         switchSlide('profile');
       } else {
-        if (!db[usernameInput] || db[usernameInput].pass !== passInput) {
-          alert("Invalid User Name or Password.");
+        if (!db[lowerEmail] || db[lowerEmail].pass !== passInput) {
+          alert("Invalid Email Address or Password.");
           return;
         }
 
-        currentUsername = usernameInput;
+        currentEmail = lowerEmail;
         isLoggedIn = true;
-        localStorage.setItem(SESSION_KEY, currentUsername);
+        localStorage.setItem(SESSION_KEY, currentEmail);
 
         document.getElementById('auth-view').classList.add('hidden');
         loadProfileForm();
@@ -800,10 +789,10 @@
 
     function logout() {
       isLoggedIn = false;
-      currentUsername = null;
+      currentEmail = null;
       activeCardProfile = null;
       localStorage.removeItem(SESSION_KEY);
-      document.getElementById('auth-username').value = '';
+      document.getElementById('auth-email').value = '';
       document.getElementById('auth-pass').value = '';
       document.getElementById('auth-confirm-pass').value = '';
       document.getElementById('auth-view').classList.remove('hidden');
@@ -838,7 +827,7 @@
     /* Match Preferences */
     function openPreferences() {
       const db = getUsersDB();
-      const prefs = db[currentUsername]?.preferences || { gender: 'any', minAge: 18, maxAge: 99 };
+      const prefs = db[currentEmail]?.preferences || { gender: 'any', minAge: 18, maxAge: 99 };
 
       selectGenderPref(prefs.gender || 'any');
       document.getElementById('pref-age-min').value = prefs.minAge || 18;
@@ -863,8 +852,8 @@
       if (minAge > maxAge) minAge = maxAge;
 
       const db = getUsersDB();
-      if (db[currentUsername]) {
-        db[currentUsername].preferences = { gender: selectedGenderPref, minAge: minAge, maxAge: maxAge };
+      if (db[currentEmail]) {
+        db[currentEmail].preferences = { gender: selectedGenderPref, minAge: minAge, maxAge: maxAge };
         saveUsersDB(db);
       }
 
@@ -876,7 +865,7 @@
     function getRandomPoolProfile() {
       const pool = getProfilePool();
       const db = getUsersDB();
-      const myData = db[currentUsername] || {};
+      const myData = db[currentEmail] || {};
       const myProfile = myData.profile || {};
       const dismissedList = myProfile.dismissed || [];
       const prefs = myData.preferences || { gender: 'any', minAge: 18, maxAge: 99 };
@@ -884,7 +873,7 @@
       const eligibleProfiles = [];
 
       for (let usrKey in pool) {
-        if (usrKey !== currentUsername) {
+        if (usrKey !== currentEmail) {
           const targetProf = pool[usrKey];
           if (targetProf && targetProf.photo) {
             if (dismissedList.includes(usrKey)) continue;
@@ -1022,9 +1011,9 @@
 
       if (targetUser) {
         const db = getUsersDB();
-        if (db[currentUsername] && db[currentUsername].profile) {
-          if (!db[currentUsername].profile.dismissed) db[currentUsername].profile.dismissed = [];
-          db[currentUsername].profile.dismissed.push(targetUser.username);
+        if (db[currentEmail] && db[currentEmail].profile) {
+          if (!db[currentEmail].profile.dismissed) db[currentEmail].profile.dismissed = [];
+          db[currentEmail].profile.dismissed.push(targetUser.username);
           saveUsersDB(db);
         }
       }
@@ -1039,39 +1028,39 @@
     /* Mutual Matching */
     function handleUserLikeAction(targetUser) {
       const likes = getLikesDB();
-      const myUsername = currentUsername;
-      const targetUsername = targetUser.username;
+      const myEmail = currentEmail;
+      const targetEmail = targetUser.username;
 
-      if (!likes[myUsername]) likes[myUsername] = {};
-      likes[myUsername][targetUsername] = true;
+      if (!likes[myEmail]) likes[myEmail] = {};
+      likes[myEmail][targetEmail] = true;
       saveLikesDB(likes);
 
-      if (likes[targetUsername] && likes[targetUsername][myUsername]) {
-        createSharedSecretRoom(myUsername, targetUsername, targetUser);
+      if (likes[targetEmail] && likes[targetEmail][myEmail]) {
+        createSharedSecretRoom(myEmail, targetEmail, targetUser);
       }
     }
 
-    function createSharedSecretRoom(userA_Name, userB_Name, targetProfile) {
+    function createSharedSecretRoom(userA_Email, userB_Email, targetProfile) {
       const rooms = getSharedRooms();
-      const roomId = 'room_' + [userA_Name, userB_Name].sort().join('_');
+      const roomId = 'room_' + [userA_Email, userB_Email].sort().join('_');
 
       let existingRoom = rooms.find(r => r.roomId === roomId);
 
       if (!existingRoom) {
         const db = getUsersDB();
-        const userA_Alias = db[userA_Name]?.profile?.alias || userA_Name;
-        const userB_Alias = db[userB_Name]?.profile?.alias || userB_Name;
+        const userA_Alias = db[userA_Email]?.profile?.alias || userA_Email.split('@')[0];
+        const userB_Alias = db[userB_Email]?.profile?.alias || userB_Email.split('@')[0];
 
         existingRoom = {
           roomId: roomId,
-          participants: [userA_Name, userB_Name],
+          participants: [userA_Email, userB_Email],
           aliases: {
-            [userA_Name]: userA_Alias,
-            [userB_Name]: userB_Alias
+            [userA_Email]: userA_Alias,
+            [userB_Email]: userB_Alias
           },
           photosRevealed: {
-            [userA_Name]: false,
-            [userB_Name]: false
+            [userA_Email]: false,
+            [userB_Email]: false
           },
           quitted: [],
           messages: [{
@@ -1091,8 +1080,8 @@
 
     function enterMatchedRoomDirectly() {
       document.getElementById('match-overlay').classList.add('hidden');
-      const targetUsername = activeMatchedProfile.username;
-      const roomId = 'room_' + [currentUsername, targetUsername].sort().join('_');
+      const targetEmail = activeMatchedProfile.username;
+      const roomId = 'room_' + [currentEmail, targetEmail].sort().join('_');
       openChatRoom(roomId);
     }
 
@@ -1102,7 +1091,7 @@
       container.innerHTML = '';
 
       const allRooms = getSharedRooms();
-      const userRooms = allRooms.filter(r => r.participants.includes(currentUsername) && !r.quitted.includes(currentUsername));
+      const userRooms = allRooms.filter(r => r.participants.includes(currentEmail) && !r.quitted.includes(currentEmail));
 
       if (userRooms.length === 0) {
         container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active secret rooms.<br>Swipe LIKE on profile cards to match!</div>`;
@@ -1110,8 +1099,8 @@
       }
 
       userRooms.forEach(room => {
-        const partnerUsername = room.participants.find(u => u !== currentUsername);
-        const partnerAlias = room.aliases[partnerUsername] || partnerUsername;
+        const partnerEmail = room.participants.find(u => u !== currentEmail);
+        const partnerAlias = room.aliases[partnerEmail] || partnerEmail.split('@')[0];
 
         const lastMsgObj = room.messages[room.messages.length - 1];
         let lastMsg = 'No messages yet';
@@ -1141,13 +1130,13 @@
       const room = rooms.find(r => r.roomId === roomId);
       if (!room) return;
 
-      const partnerUsername = room.participants.find(u => u !== currentUsername);
-      const partnerAlias = room.aliases[partnerUsername] || partnerUsername;
+      const partnerEmail = room.participants.find(u => u !== currentEmail);
+      const partnerAlias = room.aliases[partnerEmail] || partnerEmail.split('@')[0];
 
       document.getElementById('chat-partner-name').innerText = partnerAlias;
 
       const revealBtn = document.getElementById('btn-reveal-10s');
-      if (room.photosRevealed && room.photosRevealed[currentUsername]) {
+      if (room.photosRevealed && room.photosRevealed[currentEmail]) {
         revealBtn.classList.add('used');
         revealBtn.innerText = 'Photo Expired';
       } else {
@@ -1176,11 +1165,11 @@
       const room = rooms.find(r => r.roomId === activeRoomId);
       if (!room) return;
 
-      if (room.photosRevealed && room.photosRevealed[currentUsername]) return;
+      if (room.photosRevealed && room.photosRevealed[currentEmail]) return;
 
-      const partnerUsername = room.participants.find(u => u !== currentUsername);
+      const partnerEmail = room.participants.find(u => u !== currentEmail);
       const pool = getProfilePool();
-      const partnerPhoto = pool[partnerUsername]?.photo;
+      const partnerPhoto = pool[partnerEmail]?.photo;
 
       if (!partnerPhoto) {
         alert("This user has not uploaded a valid photo.");
@@ -1206,7 +1195,7 @@
           modal.classList.add('hidden');
 
           if (!room.photosRevealed) room.photosRevealed = {};
-          room.photosRevealed[currentUsername] = true;
+          room.photosRevealed[currentEmail] = true;
           saveSharedRooms(rooms);
 
           const revealBtn = document.getElementById('btn-reveal-10s');
@@ -1230,12 +1219,12 @@
 
       const room = rooms[roomIndex];
       const db = getUsersDB();
-      const myAlias = db[currentUsername]?.profile?.alias || currentUsername;
+      const myAlias = db[currentEmail]?.profile?.alias || currentEmail.split('@')[0];
 
       if (!room.quitted) room.quitted = [];
 
-      if (!room.quitted.includes(currentUsername)) {
-        room.quitted.push(currentUsername);
+      if (!room.quitted.includes(currentEmail)) {
+        room.quitted.push(currentEmail);
       }
 
       if (room.quitted.length === 1) {
@@ -1266,7 +1255,7 @@
       const room = rooms.find(r => r.roomId === activeRoomId);
       if (!room || (room.quitted && room.quitted.length > 0)) return;
 
-      const msgObj = { type: 'text', senderUsername: currentUsername, text: text };
+      const msgObj = { type: 'text', senderUsername: currentEmail, text: text };
       room.messages.push(msgObj);
 
       saveSharedRooms(rooms);
@@ -1276,7 +1265,7 @@
 
     function renderMessageUI(msgObj) {
       const msgsContainer = document.getElementById('chat-messages');
-      let isSentByMe = msgObj.senderUsername === currentUsername;
+      let isSentByMe = msgObj.senderUsername === currentEmail;
 
       if (msgObj.sender === 'system') {
         const sysDiv = document.createElement('div');
@@ -1334,9 +1323,9 @@
 
         let msgObj;
         if (selectedSendMode === 'view-once') {
-          msgObj = { type: 'view-once', senderUsername: currentUsername, src: imgSrc, destroyed: false, id: Date.now() };
+          msgObj = { type: 'view-once', senderUsername: currentEmail, src: imgSrc, destroyed: false, id: Date.now() };
         } else {
-          msgObj = { type: 'photo', senderUsername: currentUsername, src: imgSrc };
+          msgObj = { type: 'photo', senderUsername: currentEmail, src: imgSrc };
         }
 
         room.messages.push(msgObj);
@@ -1384,7 +1373,7 @@
     /* Profile Form & Pool Logic */
     function loadProfileForm() {
       const db = getUsersDB();
-      const p = db[currentUsername]?.profile || {};
+      const p = db[currentEmail]?.profile || {};
 
       document.getElementById('user-alias').value = p.alias || '';
       document.getElementById('user-looking-for').value = p.lookingFor || '';
@@ -1435,7 +1424,7 @@
 
     function saveProfile() {
       const db = getUsersDB();
-      if (!db[currentUsername]) return;
+      if (!db[currentEmail]) return;
 
       // MANDATORY VALIDATION: PROFILE PHOTO IS STRICTLY REQUIRED
       if (!uploadedUserPhoto) {
@@ -1451,9 +1440,9 @@
 
       // Optional fields default gracefully if empty
       const updatedProfile = {
-        username: currentUsername,
-        id: db[currentUsername].profile?.id || ('usr_' + Date.now()),
-        alias: document.getElementById('user-alias').value.trim() || currentUsername,
+        username: currentEmail,
+        id: db[currentEmail].profile?.id || ('usr_' + Date.now()),
+        alias: document.getElementById('user-alias').value.trim() || currentEmail.split('@')[0],
         lookingFor: document.getElementById('user-looking-for').value.trim(),
         maritalStatus: document.getElementById('user-marital').value,
         gender: document.getElementById('user-gender').value,
@@ -1468,16 +1457,16 @@
         language: document.getElementById('user-language').value.trim(),
         interests: interestsArr,
         photo: uploadedUserPhoto,
-        dismissed: db[currentUsername].profile?.dismissed || []
+        dismissed: db[currentEmail].profile?.dismissed || []
       };
 
       // Save locally to user profile
-      db[currentUsername].profile = updatedProfile;
+      db[currentEmail].profile = updatedProfile;
       saveUsersDB(db);
 
       // ADD PROFILE TO GLOBAL POOL
       const pool = getProfilePool();
-      pool[currentUsername] = updatedProfile;
+      pool[currentEmail] = updatedProfile;
       saveProfilePool(pool);
 
       alert("Profile completed & successfully added to the matching pool!");
