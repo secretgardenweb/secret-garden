@@ -1256,7 +1256,7 @@
       const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
       const roomId = activeRoomObj.id;
 
-      // 1. Retrieve the current quit state of the room
+      // 1. Retrieve current quit status of the room
       const { data: roomData, error: roomFetchErr } = await window.supabaseClient
         .from('rooms')
         .select('quit_by, quit_timestamps')
@@ -1279,11 +1279,11 @@
       const partnerAlsoQuit = partnerId && currentQuitBy.includes(partnerId);
 
       if (partnerAlsoQuit) {
-        // Both users have pressed quit: Permanently delete messages and the room
+        // Both users quit: Delete room and messages permanently
         await window.supabaseClient.from('messages').delete().eq('room_id', roomId);
         await window.supabaseClient.from('rooms').delete().eq('id', roomId);
       } else {
-        // First user quits: post a system message for the remaining user and record the departure
+        // First user quits: record quit status and post system notice
         await window.supabaseClient.from('messages').insert([{
           room_id: roomId,
           sender_id: currentUserId,
