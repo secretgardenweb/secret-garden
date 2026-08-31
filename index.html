@@ -720,6 +720,9 @@
         const { data, error } = await window.supabaseClient.auth.signUp({
           email: emailInput,
           password: passInput,
+          options: {
+            emailRedirectTo: 'https://mc777bbg.github.io/secret-garden/'
+          }
         });
 
         if (error) {
