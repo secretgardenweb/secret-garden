@@ -78,7 +78,7 @@
       background: rgba(8, 13, 10, 0.95);
       border-top: 1px solid rgba(62, 107, 82, 0.3);
       display: flex;
-      justify-content: space-around;
+      justify-around: space-around;
       align-items: center;
       z-index: 100;
     }
@@ -627,11 +627,10 @@
   </div>
 
   <script>
-    // Initialize Supabase Client (Only Declared Once Globally)
+    // Initialize Supabase Client
     const SUPABASE_URL = 'https://jcgzfxwlkiaqgawvulyi.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZ3pmeHdsa2lhcWdhd3Z1bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTU1MzksImV4cCI6MjEwMzY3MTUzOX0.7hVa_co1U_3sawR5YFf_t1GwIz6-DDk6y0jeWVBy_Kc';
     
-    // Safely assign Supabase to window
     window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let isSignUp = false;
@@ -648,6 +647,24 @@
     let activeCardProfile = null;
     let dismissedUserIds = [];
     let chatSubscription = null;
+
+    // Helper: extract target partner's ID from room_code ("room_ID1_ID2")
+    function getPartnerIdFromRoom(room) {
+      if (!room || !room.room_code) return null;
+      const parts = room.room_code.replace('room_', '').split('_');
+      return parts.find(id => id !== currentUserId) || null;
+    }
+
+    // Helper: resolve partner's alias asynchronously
+    async function fetchPartnerAlias(partnerId) {
+      if (!partnerId) return 'Secret Partner';
+      const { data } = await window.supabaseClient
+        .from('profiles')
+        .select('alias')
+        .eq('id', partnerId)
+        .maybeSingle();
+      return data?.alias || 'Secret Partner';
+    }
 
     // Supabase Auth Listener
     window.addEventListener('DOMContentLoaded', async () => {
@@ -816,6 +833,32 @@
       let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
       let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
 
+      // Check quit history to enforce the 1-week (7 days) cooldown
+      const { data: allRooms } = await window.supabaseClient
+        .from('rooms')
+        .select('room_code, quit_timestamps');
+
+      const cooldownUserIds = new Set();
+      const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+
+      if (allRooms) {
+        allRooms.forEach(room => {
+          if (room.room_code && room.room_code.includes(currentUserId) && room.quit_timestamps) {
+            const partnerId = getPartnerIdFromRoom(room);
+            if (partnerId) {
+              const myQuitTime = room.quit_timestamps[currentUserId] ? new Date(room.quit_timestamps[currentUserId]).getTime() : 0;
+              const partnerQuitTime = room.quit_timestamps[partnerId] ? new Date(room.quit_timestamps[partnerId]).getTime() : 0;
+              
+              if ((myQuitTime && (now - myQuitTime < ONE_WEEK_MS)) || 
+                  (partnerQuitTime && (now - partnerQuitTime < ONE_WEEK_MS))) {
+                cooldownUserIds.add(partnerId);
+              }
+            }
+          }
+        });
+      }
+
       let query = window.supabaseClient.from('profiles').select('*').neq('id', currentUserId);
 
       if (selectedGenderPref !== 'any') {
@@ -834,6 +877,7 @@
       const eligibleProfiles = data.filter(targetProf => {
         if (!targetProf.photo_url) return false;
         if (dismissedUserIds.includes(targetProf.id)) return false;
+        if (cooldownUserIds.has(targetProf.id)) return false;
 
         if (targetProf.age) {
           const ageNum = parseInt(targetProf.age);
@@ -1028,11 +1072,11 @@
 
       if (!room) {
         const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
-        const roomName = `${myAlias} & ${targetProfile.alias}`;
+        const defaultRoomName = `${myAlias} & ${targetProfile.alias}`;
 
         const { data: newRoom, error: createError } = await window.supabaseClient
           .from('rooms')
-          .insert([{ room_name: roomName, room_code: roomCode, created_by: currentUserId }])
+          .insert([{ room_name: defaultRoomName, room_code: roomCode, created_by: currentUserId, quit_by: [], quit_timestamps: {} }])
           .select()
           .single();
 
@@ -1071,7 +1115,12 @@
         return;
       }
 
-      const userRooms = (rooms || []).filter(r => r.room_code && r.room_code.includes(currentUserId));
+      // Filter: user must be in room_code and NOT in quit_by array
+      const userRooms = (rooms || []).filter(r => {
+        if (!r.room_code || !r.room_code.includes(currentUserId)) return false;
+        const quitBy = r.quit_by || [];
+        return !quitBy.includes(currentUserId);
+      });
 
       if (userRooms.length === 0) {
         container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active secret rooms.<br>Swipe LIKE on profile cards to match!</div>`;
@@ -1079,24 +1128,32 @@
       }
 
       container.innerHTML = '';
-      userRooms.forEach(room => {
+      for (const room of userRooms) {
+        // Dynamic name per viewer: XX sees YY's name
+        const partnerId = getPartnerIdFromRoom(room);
+        const partnerAlias = await fetchPartnerAlias(partnerId);
+
         const item = document.createElement('div');
         item.className = 'room-list-item';
         item.innerHTML = `
           <div>
-            <div class="room-name">${room.room_name}</div>
+            <div class="room-name">${partnerAlias}</div>
             <div class="room-sub">Tap to enter secret chat</div>
           </div>
           <span style="color:#e0a96d; font-size:12px;">Open &gt;</span>
         `;
         item.onclick = () => openChatRoom(room);
         container.appendChild(item);
-      });
+      }
     }
 
     async function openChatRoom(room) {
       activeRoomObj = room;
-      document.getElementById('chat-partner-name').innerText = room.room_name;
+
+      // Show the matched user's name on the header instead of generic room name
+      const partnerId = getPartnerIdFromRoom(room);
+      const partnerAlias = await fetchPartnerAlias(partnerId);
+      document.getElementById('chat-partner-name').innerText = partnerAlias;
 
       const revealBtn = document.getElementById('btn-reveal-10s');
       revealBtn.classList.remove('used');
@@ -1146,10 +1203,7 @@
     window.trigger10sPhotoReveal = async function() {
       if (!activeRoomObj) return;
 
-      const targetId = activeRoomObj.room_code
-        .replace('room_', '')
-        .split('_')
-        .find(id => id !== currentUserId);
+      const targetId = getPartnerIdFromRoom(activeRoomObj);
 
       if (!targetId) return;
 
@@ -1200,13 +1254,52 @@
       if (!activeRoomObj) return;
 
       const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
-      
-      await window.supabaseClient.from('messages').insert([{
-        room_id: activeRoomObj.id,
-        sender_id: currentUserId,
-        sender_name: 'system',
-        content: `[SYSTEM]: ${myAlias} left the chat room.`
-      }]);
+      const roomId = activeRoomObj.id;
+
+      // 1. Fetch current room state to inspect quit_by array and quit_timestamps object
+      const { data: roomData, error: roomFetchErr } = await window.supabaseClient
+        .from('rooms')
+        .select('quit_by, quit_timestamps')
+        .eq('id', roomId)
+        .maybeSingle();
+
+      if (roomFetchErr) {
+        console.error("Error fetching room on quit:", roomFetchErr.message);
+      }
+
+      let currentQuitBy = roomData?.quit_by || [];
+      let currentQuitTimestamps = roomData?.quit_timestamps || {};
+
+      if (!currentQuitBy.includes(currentUserId)) {
+        currentQuitBy.push(currentUserId);
+      }
+      currentQuitTimestamps[currentUserId] = new Date().toISOString();
+
+      // Check if both participants have now quit
+      const partnerId = getPartnerIdFromRoom(activeRoomObj);
+      const partnerAlsoQuit = partnerId && currentQuitBy.includes(partnerId);
+
+      if (partnerAlsoQuit) {
+        // Both users quit: permanently delete all messages and the room itself
+        await window.supabaseClient.from('messages').delete().eq('room_id', roomId);
+        await window.supabaseClient.from('rooms').delete().eq('id', roomId);
+      } else {
+        // First user quits: post departure message & mark quit_by array and quit_timestamps
+        await window.supabaseClient.from('messages').insert([{
+          room_id: roomId,
+          sender_id: currentUserId,
+          sender_name: 'system',
+          content: `[SYSTEM]: ${myAlias} left the chat room.`
+        }]);
+
+        await window.supabaseClient
+          .from('rooms')
+          .update({ 
+            quit_by: currentQuitBy,
+            quit_timestamps: currentQuitTimestamps
+          })
+          .eq('id', roomId);
+      }
 
       activeRoomObj = null;
       backToRoomList();
