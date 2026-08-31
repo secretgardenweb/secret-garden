@@ -627,10 +627,12 @@
   </div>
 
   <script>
-    // 1. Initialize Supabase Client
+    // Initialize Supabase Client (Only Declared Once Globally)
     const SUPABASE_URL = 'https://jcgzfxwlkiaqgawvulyi.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZ3pmeHdsa2lhcWdhd3Z1bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTU1MzksImV4cCI6MjEwMzY3MTUzOX0.7hVa_co1U_3sawR5YFf_t1GwIz6-DDk6y0jeWVBy_Kc';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Safely assign Supabase to window
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let isSignUp = false;
     let isLoggedIn = false;
@@ -647,9 +649,9 @@
     let dismissedUserIds = [];
     let chatSubscription = null;
 
-    // 2. Supabase Auth State Change Listener & Auto-Login
+    // Supabase Auth Listener
     window.addEventListener('DOMContentLoaded', async () => {
-      supabase.auth.onAuthStateChange(async (event, session) => {
+      window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (session && session.user) {
           currentEmail = session.user.email.toLowerCase();
           currentUserId = session.user.id;
@@ -666,8 +668,8 @@
       });
     });
 
-    /* Auth UI Toggle */
-    function toggleAuthMode() {
+    /* Global Handlers */
+    window.toggleAuthMode = function() {
       isSignUp = !isSignUp;
 
       const titleEl = document.getElementById('auth-title');
@@ -691,9 +693,9 @@
           document.getElementById('auth-confirm-pass').value = '';
         }
       }
-    }
+    };
 
-    async function handleAuthSubmit() {
+    window.handleAuthSubmit = async function() {
       const emailInput = document.getElementById('auth-email').value.trim();
       const passInput = document.getElementById('auth-pass').value.trim();
 
@@ -715,7 +717,7 @@
           return;
         }
 
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await window.supabaseClient.auth.signUp({
           email: emailInput,
           password: passInput,
         });
@@ -727,7 +729,7 @@
 
         alert("Account registered! Check your email to verify if required, or sign in.");
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await window.supabaseClient.auth.signInWithPassword({
           email: emailInput,
           password: passInput,
         });
@@ -737,11 +739,11 @@
           return;
         }
       }
-    }
+    };
 
-    async function logout() {
-      if (chatSubscription) supabase.removeChannel(chatSubscription);
-      const { error } = await supabase.auth.signOut();
+    window.logout = async function() {
+      if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
+      const { error } = await window.supabaseClient.auth.signOut();
       if (error) console.error("Logout Error:", error.message);
 
       isLoggedIn = false;
@@ -753,10 +755,9 @@
       document.getElementById('auth-pass').value = '';
       document.getElementById('auth-confirm-pass').value = '';
       document.getElementById('auth-view').classList.remove('hidden');
-    }
+    };
 
-    /* Tab Navigation */
-    function switchSlide(slideName) {
+    window.switchSlide = function(slideName) {
       if (!isLoggedIn) return;
 
       document.getElementById('slide-match').classList.add('hidden');
@@ -779,23 +780,22 @@
         document.getElementById('slide-profile').classList.remove('hidden');
         document.getElementById('tab-profile').classList.add('active');
       }
-    }
+    };
 
-    /* Match Preferences */
-    function openPreferences() {
+    window.openPreferences = function() {
       selectGenderPref(selectedGenderPref || 'any');
       document.getElementById('slide-match').classList.add('hidden');
       document.getElementById('slide-preference').classList.remove('hidden');
-    }
+    };
 
-    function selectGenderPref(gender) {
+    window.selectGenderPref = function(gender) {
       selectedGenderPref = gender;
       document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
       const activeBtn = document.getElementById(`pref-gen-${gender}`);
       if (activeBtn) activeBtn.classList.add('active');
-    }
+    };
 
-    function savePreferences() {
+    window.savePreferences = function() {
       let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
       let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
 
@@ -805,16 +805,15 @@
 
       activeCardProfile = null;
       switchSlide('match');
-    }
+    };
 
-    /* STEP 3: Fetch Real Profiles Direct from Supabase Database for Swiping */
     async function getRandomPoolProfile() {
       if (!currentEmail || !currentUserId) return null;
 
       let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
       let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
 
-      let query = supabase.from('profiles').select('*').neq('id', currentUserId);
+      let query = window.supabaseClient.from('profiles').select('*').neq('id', currentUserId);
 
       if (selectedGenderPref !== 'any') {
         query = query.ilike('gender', selectedGenderPref);
@@ -867,7 +866,6 @@
       };
     }
 
-    /* Render Cards Deck */
     async function renderDeck() {
       const deckEl = document.getElementById('deck');
       deckEl.innerHTML = '<div style="text-align:center; color:#8fa397; margin-top:140px;">Searching for secret profiles...</div>';
@@ -967,11 +965,11 @@
       card.addEventListener('touchstart', onStart);
     }
 
-    function handleButtonClick(isLike) {
+    window.handleButtonClick = function(isLike) {
       const card = document.querySelector('#deck .card');
       if (!card) return;
       completeSwipe(card, isLike);
-    }
+    };
 
     async function completeSwipe(card, isLike) {
       const flyX = isLike ? 500 : -500;
@@ -992,10 +990,8 @@
       }, 300);
     }
 
-    /* Mutual Matching using Supabase DB */
     async function handleUserLikeAction(targetUser) {
-      // 1. Record your match/like in Supabase matches table
-      const { error: insertErr } = await supabase
+      const { error: insertErr } = await window.supabaseClient
         .from('matches')
         .insert([{ user_id: currentUserId, target_user_id: targetUser.id }]);
 
@@ -1003,8 +999,7 @@
         console.error("Error creating match record:", insertErr.message);
       }
 
-      // 2. Check if the target user has also liked you
-      const { data: reciprocalMatch, error: selectErr } = await supabase
+      const { data: reciprocalMatch, error: selectErr } = await window.supabaseClient
         .from('matches')
         .select('*')
         .eq('user_id', targetUser.id)
@@ -1022,7 +1017,7 @@
       const sortedIds = [currentUserId, targetProfile.id].sort();
       const roomCode = `room_${sortedIds[0]}_${sortedIds[1]}`;
 
-      let { data: room, error: roomError } = await supabase
+      let { data: room, error: roomError } = await window.supabaseClient
         .from('rooms')
         .select('*')
         .eq('room_code', roomCode)
@@ -1032,7 +1027,7 @@
         const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
         const roomName = `${myAlias} & ${targetProfile.alias}`;
 
-        const { data: newRoom, error: createError } = await supabase
+        const { data: newRoom, error: createError } = await window.supabaseClient
           .from('rooms')
           .insert([{ room_name: roomName, room_code: roomCode, created_by: currentUserId }])
           .select()
@@ -1051,19 +1046,18 @@
       document.getElementById('match-overlay').classList.remove('hidden');
     }
 
-    function enterMatchedRoomDirectly() {
+    window.enterMatchedRoomDirectly = function() {
       document.getElementById('match-overlay').classList.add('hidden');
       if (activeRoomObj) {
         openChatRoom(activeRoomObj);
       }
-    }
+    };
 
-    /* Chat Rooms via Supabase DB */
     async function renderRoomList() {
       const container = document.getElementById('secret-room-container');
       container.innerHTML = '<div style="text-align:center; color:#8fa397; padding:20px;">Loading secret rooms...</div>';
 
-      const { data: rooms, error } = await supabase
+      const { data: rooms, error } = await window.supabaseClient
         .from('rooms')
         .select('*')
         .order('created_at', { ascending: false });
@@ -1110,7 +1104,7 @@
       const msgsContainer = document.getElementById('chat-messages');
       msgsContainer.innerHTML = '<div style="text-align:center; color:#8fa397;">Loading chat history...</div>';
 
-      const { data: messages, error } = await supabase
+      const { data: messages, error } = await window.supabaseClient
         .from('messages')
         .select('*')
         .eq('room_id', room.id)
@@ -1121,14 +1115,14 @@
         messages.forEach(msg => renderMessageUI(msg));
       }
 
-      if (chatSubscription) supabase.removeChannel(chatSubscription);
+      if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
       chatSubscription = subscribeToLiveChat(room.id);
 
       document.getElementById('active-chat-view').classList.remove('hidden');
     }
 
     function subscribeToLiveChat(roomId) {
-      return supabase
+      return window.supabaseClient
         .channel(`room:${roomId}`)
         .on(
           'postgres_changes',
@@ -1146,7 +1140,7 @@
       document.getElementById('btn-photo-opt').disabled = disabled;
     }
 
-    async function trigger10sPhotoReveal() {
+    window.trigger10sPhotoReveal = async function() {
       if (!activeRoomObj) return;
 
       const targetId = activeRoomObj.room_code
@@ -1156,7 +1150,7 @@
 
       if (!targetId) return;
 
-      const { data: partnerData, error } = await supabase
+      const { data: partnerData, error } = await window.supabaseClient
         .from('profiles')
         .select('photo_url')
         .eq('id', targetId)
@@ -1191,20 +1185,20 @@
           revealBtn.innerText = 'Photo Expired';
         }
       }, 1000);
-    }
+    };
 
-    function backToRoomList() {
-      if (chatSubscription) supabase.removeChannel(chatSubscription);
+    window.backToRoomList = function() {
+      if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
       document.getElementById('active-chat-view').classList.add('hidden');
       switchSlide('rooms');
-    }
+    };
 
-    async function quitSecretRoom() {
+    window.quitSecretRoom = async function() {
       if (!activeRoomObj) return;
 
       const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
       
-      await supabase.from('messages').insert([{
+      await window.supabaseClient.from('messages').insert([{
         room_id: activeRoomObj.id,
         sender_id: currentUserId,
         sender_name: 'system',
@@ -1213,16 +1207,16 @@
 
       activeRoomObj = null;
       backToRoomList();
-    }
+    };
 
-    async function sendMessage() {
+    window.sendMessage = async function() {
       const input = document.getElementById('message-input');
       const text = input.value.trim();
       if (!text || !activeRoomObj) return;
 
       const senderAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
 
-      const { error } = await supabase
+      const { error } = await window.supabaseClient
         .from('messages')
         .insert([{
           room_id: activeRoomObj.id,
@@ -1233,7 +1227,7 @@
 
       if (error) console.error("Error sending message:", error.message);
       input.value = '';
-    }
+    };
 
     function renderMessageUI(msgObj) {
       const msgsContainer = document.getElementById('chat-messages');
@@ -1268,24 +1262,24 @@
       msgsContainer.scrollTop = msgsContainer.scrollHeight;
     }
 
-    function togglePhotoPopover() {
+    window.togglePhotoPopover = function() {
       document.getElementById('photo-popover').classList.toggle('hidden');
-    }
+    };
 
-    function triggerFileInput(mode) {
+    window.triggerFileInput = function(mode) {
       selectedSendMode = mode;
       document.getElementById('photo-popover').classList.add('hidden');
       document.getElementById('chat-photo-input').click();
-    }
+    };
 
-    async function handleChatPhotoUpload(event) {
+    window.handleChatPhotoUpload = async function(event) {
       const file = event.target.files[0];
       if (!file || !activeRoomObj) return;
 
       const fileExt = file.name.split('.').pop();
       const filePath = `chats/${activeRoomObj.id}/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await window.supabaseClient.storage
         .from('avatars')
         .upload(filePath, file);
 
@@ -1294,7 +1288,7 @@
         return;
       }
 
-      const { data: publicUrlData } = supabase.storage
+      const { data: publicUrlData } = window.supabaseClient.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
@@ -1302,7 +1296,7 @@
       const prefix = selectedSendMode === 'view-once' ? '[VIEW_ONCE]:' : '[PHOTO]:';
       const senderAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
 
-      await supabase.from('messages').insert([{
+      await window.supabaseClient.from('messages').insert([{
         room_id: activeRoomObj.id,
         sender_id: currentUserId,
         sender_name: senderAlias,
@@ -1310,7 +1304,7 @@
       }]);
 
       event.target.value = '';
-    }
+    };
 
     function openViewOncePhoto(cardDiv, photoUrl) {
       if (cardDiv.classList.contains('destroyed')) return;
@@ -1339,11 +1333,10 @@
       }, 1000);
     }
 
-    /* Profile Loading */
     async function loadProfileForm() {
       if (!currentEmail || !currentUserId) return;
 
-      const { data: p, error } = await supabase
+      const { data: p, error } = await window.supabaseClient
         .from('profiles')
         .select('*')
         .eq('id', currentUserId)
@@ -1381,7 +1374,7 @@
       }
     }
 
-    function previewUserPhoto(event) {
+    window.previewUserPhoto = function(event) {
       const file = event.target.files[0];
       if (!file) return;
 
@@ -1397,10 +1390,9 @@
         document.getElementById('profile-error-box').classList.add('hidden');
       };
       reader.readAsDataURL(file);
-    }
+    };
 
-    /* Upload Photo to Supabase Storage & Save Profile to Supabase Database */
-    async function saveProfile() {
+    window.saveProfile = async function() {
       if (!currentEmail || !currentUserId) return;
 
       if (!selectedFileToUpload && !uploadedUserPhoto) {
@@ -1422,13 +1414,13 @@
           const fileExt = selectedFileToUpload.name.split('.').pop();
           const filePath = `${currentUserId}/profile.${fileExt}`;
 
-          const { error: uploadError } = await supabase.storage
+          const { error: uploadError } = await window.supabaseClient.storage
             .from('avatars')
             .upload(filePath, selectedFileToUpload, { upsert: true });
 
           if (uploadError) throw uploadError;
 
-          const { data: publicUrlData } = supabase.storage
+          const { data: publicUrlData } = window.supabaseClient.storage
             .from('avatars')
             .getPublicUrl(filePath);
 
@@ -1458,7 +1450,7 @@
           photo_url: photoPublicUrl
         };
 
-        const { error: dbError } = await supabase
+        const { error: dbError } = await window.supabaseClient
           .from('profiles')
           .upsert(profilePayload);
 
@@ -1478,7 +1470,7 @@
         saveBtn.disabled = false;
         saveBtn.innerText = "Save & Join Matching Pool";
       }
-    }
+    };
   </script>
 </body>
 </html>
