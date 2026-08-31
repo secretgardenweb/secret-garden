@@ -38,7 +38,7 @@
 
     header { 
       height: 60px;
-      padding: 10px 16px 0 16px; /* Lowered slightly for iPhone status bar / battery clearance */
+      padding: 10px 16px 0 16px; 
       text-align: center; 
       border-bottom: 1px solid rgba(62, 107, 82, 0.25); 
       background: rgba(8, 13, 10, 0.6); 
@@ -363,8 +363,8 @@
         </svg>
         <span>SECRET GARDEN</span>
       </div>
-      <!-- Lowered logout button for iPhone battery/notch clearance -->
-      <button id="logout-btn" style="background:none; border:none; color:#8fa397; font-size:12px; cursor:pointer; padding-top: 4px;" onclick="logout()">Logout</button>
+      <!-- REQUEST 1: Lowered logout button around 3mm (~11px padding-top) -->
+      <button id="logout-btn" style="background:none; border:none; color:#8fa397; font-size:12px; cursor:pointer; padding-top: 11px;" onclick="logout()">Logout</button>
     </header>
 
     <div class="view-container">
@@ -656,7 +656,7 @@
       return parts.find(id => id !== currentUserId) || null;
     }
 
-    // Helper: resolve partner's alias asynchronously
+    // Helper: resolve partner's alias asynchronously based on account profile
     async function fetchPartnerAlias(partnerId) {
       if (!partnerId) return 'Secret Partner';
       const { data } = await window.supabaseClient
@@ -667,7 +667,7 @@
       return data?.alias || 'Secret Partner';
     }
 
-    // Supabase Auth Listener
+    // Supabase Auth Listener (REQUEST 2: Profile maps directly to account session email & ID)
     window.addEventListener('DOMContentLoaded', async () => {
       window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (session && session.user) {
@@ -834,7 +834,6 @@
       let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
       let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
 
-      // Check quit history to enforce the 1-week (7 days) cooldown
       const { data: allRooms } = await window.supabaseClient
         .from('rooms')
         .select('room_code, quit_timestamps');
@@ -1061,6 +1060,7 @@
       }
     }
 
+    // REQUEST 3: Generate active secret room properly after mutual likes
     async function createSharedSecretRoom(targetProfile) {
       const sortedIds = [currentUserId, targetProfile.id].sort();
       const roomCode = `room_${sortedIds[0]}_${sortedIds[1]}`;
@@ -1086,6 +1086,19 @@
           return;
         }
         room = newRoom;
+      } else {
+        // If a room already exists (e.g. from prior quits or resets), make sure quit flags are cleared for current entry
+        const quitBy = room.quit_by || [];
+        if (quitBy.includes(currentUserId) || quitBy.includes(targetProfile.id)) {
+          const updatedQuitBy = quitBy.filter(id => id !== currentUserId && id !== targetProfile.id);
+          const { data: updatedRoom } = await window.supabaseClient
+            .from('rooms')
+            .update({ quit_by: updatedQuitBy })
+            .eq('id', room.id)
+            .select()
+            .single();
+          if (updatedRoom) room = updatedRoom;
+        }
       }
 
       activeMatchedProfile = targetProfile;
@@ -1116,7 +1129,6 @@
         return;
       }
 
-      // Filter out rooms that the current user has quit or is not part of
       const userRooms = (rooms || []).filter(r => {
         if (!r.room_code || !r.room_code.includes(currentUserId)) return false;
         const quitBy = r.quit_by || [];
@@ -1130,7 +1142,6 @@
 
       container.innerHTML = '';
       for (const room of userRooms) {
-        // Dynamic name rendering: shows the partner's alias
         const partnerId = getPartnerIdFromRoom(room);
         const partnerAlias = await fetchPartnerAlias(partnerId);
 
@@ -1151,7 +1162,6 @@
     async function openChatRoom(room) {
       activeRoomObj = room;
 
-      // Header dynamically updates to the target user's alias
       const partnerId = getPartnerIdFromRoom(room);
       const partnerAlias = await fetchPartnerAlias(partnerId);
       document.getElementById('chat-partner-name').innerText = partnerAlias;
@@ -1257,7 +1267,6 @@
       const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
       const roomId = activeRoomObj.id;
 
-      // 1. Retrieve current quit status of the room
       const { data: roomData, error: roomFetchErr } = await window.supabaseClient
         .from('rooms')
         .select('quit_by, quit_timestamps')
@@ -1280,11 +1289,9 @@
       const partnerAlsoQuit = partnerId && currentQuitBy.includes(partnerId);
 
       if (partnerAlsoQuit) {
-        // Both users quit: Delete room and messages permanently
         await window.supabaseClient.from('messages').delete().eq('room_id', roomId);
         await window.supabaseClient.from('rooms').delete().eq('id', roomId);
       } else {
-        // First user quits: record quit status and post system notice
         await window.supabaseClient.from('messages').insert([{
           room_id: roomId,
           sender_id: currentUserId,
