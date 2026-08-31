@@ -37,8 +37,8 @@
     }
 
     header { 
-      height: 52px;
-      padding: 0 16px; 
+      height: 60px;
+      padding: 10px 16px 0 16px; /* Lowered slightly for iPhone status bar / battery clearance */
       text-align: center; 
       border-bottom: 1px solid rgba(62, 107, 82, 0.25); 
       background: rgba(8, 13, 10, 0.6); 
@@ -363,7 +363,8 @@
         </svg>
         <span>SECRET GARDEN</span>
       </div>
-      <button id="logout-btn" style="background:none; border:none; color:#8fa397; font-size:12px; cursor:pointer;" onclick="logout()">Logout</button>
+      <!-- Lowered logout button for iPhone battery/notch clearance -->
+      <button id="logout-btn" style="background:none; border:none; color:#8fa397; font-size:12px; cursor:pointer; padding-top: 4px;" onclick="logout()">Logout</button>
     </header>
 
     <div class="view-container">
