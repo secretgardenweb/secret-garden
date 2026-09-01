@@ -1030,9 +1030,16 @@
         const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
         const roomName = `${myAlias} & ${targetProfile.alias}`;
 
+        // UPDATED: Added user1_id and user2_id to satisfy RLS policies
         const { data: newRoom, error: createError } = await window.supabaseClient
           .from('rooms')
-          .insert([{ room_name: roomName, room_code: roomCode, created_by: currentUserId }])
+          .insert([{ 
+            room_name: roomName, 
+            room_code: roomCode, 
+            created_by: currentUserId,
+            user1_id: sortedIds[0],
+            user2_id: sortedIds[1]
+          }])
           .select()
           .single();
 
