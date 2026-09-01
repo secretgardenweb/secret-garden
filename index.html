@@ -627,10 +627,11 @@
   </div>
 
   <script>
-    // Initialize Supabase Client
+    // Initialize Supabase Client (Only Declared Once Globally)
     const SUPABASE_URL = 'https://jcgzfxwlkiaqgawvulyi.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZ3pmeHdsa2lhcWdhd3Z1bHlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTU1MzksImV4cCI6MjEwMzY3MTUzOX0.7hVa_co1U_3sawR5YFf_t1GwIz6-DDk6y0jeWVBy_Kc';
     
+    // Safely assign Supabase to window
     window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let isSignUp = false;
@@ -648,6 +649,7 @@
     let dismissedUserIds = [];
     let chatSubscription = null;
 
+    // Supabase Auth Listener
     window.addEventListener('DOMContentLoaded', async () => {
       window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (session && session.user) {
@@ -666,8 +668,10 @@
       });
     });
 
+    /* Global Handlers */
     window.toggleAuthMode = function() {
       isSignUp = !isSignUp;
+
       const titleEl = document.getElementById('auth-title');
       const subtitleEl = document.getElementById('auth-subtitle');
       const submitBtn = document.getElementById('auth-submit-btn');
@@ -675,13 +679,16 @@
       const confirmGroup = document.getElementById('auth-confirm-pass-group');
 
       if (titleEl) titleEl.innerText = isSignUp ? "Create Account" : "Sign In";
-      if (subtitleEl) subtitleEl.innerText = isSignUp ? "Register with a valid Email and Password." : "Enter your secret credentials to enter the garden.";
+      if (subtitleEl) subtitleEl.innerText = isSignUp 
+        ? "Register with a valid Email and Password." 
+        : "Enter your secret credentials to enter the garden.";
       if (submitBtn) submitBtn.innerText = isSignUp ? "Register Account" : "Enter Secret Garden";
       if (toggleText) toggleText.innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Now";
 
       if (confirmGroup) {
-        if (isSignUp) confirmGroup.classList.remove('hidden');
-        else {
+        if (isSignUp) {
+          confirmGroup.classList.remove('hidden');
+        } else {
           confirmGroup.classList.add('hidden');
           document.getElementById('auth-confirm-pass').value = '';
         }
@@ -699,32 +706,49 @@
 
       if (isSignUp) {
         const confirmPassInput = document.getElementById('auth-confirm-pass').value.trim();
-        if (!confirmPassInput || passInput !== confirmPassInput) {
-          alert("Passwords do not match.");
+
+        if (!confirmPassInput) {
+          alert("Please enter the confirm password.");
           return;
         }
 
-        const { error } = await window.supabaseClient.auth.signUp({
+        if (passInput !== confirmPassInput) {
+          alert("Passwords do not match. Please enter the same password again.");
+          return;
+        }
+
+        const { data, error } = await window.supabaseClient.auth.signUp({
           email: emailInput,
           password: passInput,
-          options: { emailRedirectTo: 'https://mc777bbg.github.io/secret-garden/' }
+          options: {
+            emailRedirectTo: 'https://mc777bbg.github.io/secret-garden/'
+          }
         });
 
-        if (error) { alert("Registration Failed: " + error.message); return; }
+        if (error) {
+          alert("Registration Failed: " + error.message);
+          return;
+        }
+
         alert("Account registered! Check your email to verify if required, or sign in.");
       } else {
-        const { error } = await window.supabaseClient.auth.signInWithPassword({
+        const { data, error } = await window.supabaseClient.auth.signInWithPassword({
           email: emailInput,
           password: passInput,
         });
 
-        if (error) { alert("Sign In Failed: " + error.message); return; }
+        if (error) {
+          alert("Sign In Failed: " + error.message);
+          return;
+        }
       }
     };
 
     window.logout = async function() {
       if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
-      await window.supabaseClient.auth.signOut();
+      const { error } = await window.supabaseClient.auth.signOut();
+      if (error) console.error("Logout Error:", error.message);
+
       isLoggedIn = false;
       currentEmail = null;
       currentUserId = null;
@@ -744,6 +768,7 @@
       document.getElementById('slide-rooms').classList.add('hidden');
       document.getElementById('slide-profile').classList.add('hidden');
       document.getElementById('active-chat-view').classList.add('hidden');
+
       document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
 
       if (slideName === 'match') {
@@ -774,29 +799,54 @@
     };
 
     window.savePreferences = function() {
+      let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
+      let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
+
+      if (minAge < 18) minAge = 18;
+      if (maxAge > 99) maxAge = 99;
+      if (minAge > maxAge) minAge = maxAge;
+
       activeCardProfile = null;
       switchSlide('match');
     };
 
     async function getRandomPoolProfile() {
       if (!currentEmail || !currentUserId) return null;
+
       let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
       let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
 
       let query = window.supabaseClient.from('profiles').select('*').neq('id', currentUserId);
-      if (selectedGenderPref !== 'any') query = query.ilike('gender', selectedGenderPref);
+
+      if (selectedGenderPref !== 'any') {
+        query = query.ilike('gender', selectedGenderPref);
+      }
 
       const { data, error } = await query;
-      if (error || !data) return null;
+
+      if (error) {
+        console.error('Error fetching profiles from Supabase:', error.message);
+        return null;
+      }
+
+      if (!data || data.length === 0) return null;
 
       const eligibleProfiles = data.filter(targetProf => {
-        if (!targetProf.photo_url || dismissedUserIds.includes(targetProf.id)) return false;
-        if (targetProf.age && (targetProf.age < minAge || targetProf.age > maxAge)) return false;
+        if (!targetProf.photo_url) return false;
+        if (dismissedUserIds.includes(targetProf.id)) return false;
+
+        if (targetProf.age) {
+          const ageNum = parseInt(targetProf.age);
+          if (ageNum < minAge || ageNum > maxAge) return false;
+        }
+
         return true;
       });
 
       if (eligibleProfiles.length === 0) return null;
-      const chosen = eligibleProfiles[Math.floor(Math.random() * eligibleProfiles.length)];
+
+      const randomIndex = Math.floor(Math.random() * eligibleProfiles.length);
+      const chosen = eligibleProfiles[randomIndex];
 
       return {
         id: chosen.id,
@@ -807,9 +857,13 @@
         gender: chosen.gender || '',
         about: chosen.about || '',
         age: chosen.age || '',
-        location: chosen.location || '',
-        occupation: chosen.occupation || '',
+        height: chosen.height || '',
+        ethnicity: chosen.ethnicity || '',
         mbti: chosen.mbti || '',
+        occupation: chosen.occupation || '',
+        location: chosen.location || '',
+        degree: chosen.degree || '',
+        language: chosen.language || '',
         interests: chosen.interests || [],
         photo: chosen.photo_url
       };
@@ -819,38 +873,65 @@
       const deckEl = document.getElementById('deck');
       deckEl.innerHTML = '<div style="text-align:center; color:#8fa397; margin-top:140px;">Searching for secret profiles...</div>';
 
-      if (!activeCardProfile) activeCardProfile = await getRandomPoolProfile();
+      if (!activeCardProfile) {
+        activeCardProfile = await getRandomPoolProfile();
+      }
+
       deckEl.innerHTML = '';
 
       if (!activeCardProfile) {
-        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px;">No profiles available right now.</div>`;
+        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the garden right now.<br><br>Adjust your Preferences or check back soon!</div>`;
         return;
       }
 
       const profile = activeCardProfile;
       const card = document.createElement('div');
       card.className = 'card';
-      const interestsList = Array.isArray(profile.interests) ? profile.interests : [];
+
+      const interestsList = Array.isArray(profile.interests) 
+        ? profile.interests 
+        : (profile.interests ? profile.interests.split(',').map(s=>s.trim()) : []);
 
       card.innerHTML = `
         <div class="stamp like">LIKE</div>
         <div class="stamp nope">NOPE</div>
         <div class="card-header">
-          <div class="user-alias">${profile.alias}</div>
+          <div class="user-alias">${profile.alias || 'Anonymous User'}</div>
           <div class="user-badge">Discretion Guaranteed</div>
         </div>
         <div class="card-body">
           <div class="hidden-photo-box">
             <span>🔒 Confidential Profile Photo</span>
+            <span style="font-weight:400; font-size:10px; color:#8fa397; margin-top:4px;">Photo visible for 10s inside secret room.</span>
           </div>
-          ${profile.about ? `<div class="section-title">About Me</div><div class="about-box">${profile.about}</div>` : ''}
+
+          ${profile.lookingFor ? `
+            <div class="section-title">Looking For</div>
+            <div class="about-box" style="color:#e0a96d; font-weight:600;">${profile.lookingFor}</div>
+          ` : ''}
+
+          ${profile.about ? `
+            <div class="section-title">About Me</div>
+            <div class="about-box">${profile.about}</div>
+          ` : ''}
+
           <div class="section-title">Overview</div>
           <div class="grid-info">
-            <div class="info-item"><span class="info-label">Gender</span><span class="info-val">${profile.gender.toUpperCase()}</span></div>
-            <div class="info-item"><span class="info-label">Age</span><span class="info-val">${profile.age}</span></div>
+            <div class="info-item"><span class="info-label">Marital Status</span><span class="info-val">${profile.maritalStatus || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">District</span><span class="info-val">${profile.location || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">Gender</span><span class="info-val">${profile.gender ? profile.gender.toUpperCase() : 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">Age</span><span class="info-val">${profile.age || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">Occupation</span><span class="info-val">${profile.occupation || 'N/A'}</span></div>
+            <div class="info-item"><span class="info-label">MBTI</span><span class="info-val">${profile.mbti || 'N/A'}</span></div>
           </div>
+
+          ${interestsList.length > 0 ? `
+            <div class="section-title">Interests</div>
+            <div class="tags-container">${interestsList.map(i => `<span class="tag">${i}</span>`).join('')}</div>
+          ` : ''}
         </div>
       `;
+
       attachCardGestures(card);
       deckEl.appendChild(card);
     }
@@ -894,12 +975,16 @@
     };
 
     async function completeSwipe(card, isLike) {
+      const flyX = isLike ? 500 : -500;
       card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
-      card.style.transform = `translateX(${isLike ? 500 : -500}px)`;
+      card.style.transform = `translateX(${flyX}px) rotate(${flyX * 0.05}deg)`;
       card.style.opacity = 0;
 
       const targetUser = activeCardProfile;
-      if (targetUser) dismissedUserIds.push(targetUser.id);
+
+      if (targetUser) {
+        dismissedUserIds.push(targetUser.id);
+      }
 
       setTimeout(async () => {
         activeCardProfile = await getRandomPoolProfile();
@@ -908,33 +993,25 @@
       }, 300);
     }
 
-    // UPDATED handleUserLikeAction WITH ERROR LOGGING (Step 1)
     async function handleUserLikeAction(targetUser) {
-      // 1. Insert the current user's like
-      const { error: insertError } = await window.supabaseClient
+      const { error: insertErr } = await window.supabaseClient
         .from('matches')
         .insert([{ user_id: currentUserId, target_user_id: targetUser.id }]);
 
-      // Ignore duplicate like errors (if user liked them before), but log others
-      if (insertError && insertError.code !== '23505') { 
-        console.error("❌ Error inserting match:", insertError.message);
+      if (insertErr && !insertErr.message.includes('duplicate key')) {
+        console.error("Error creating match record:", insertErr.message);
       }
 
-      // 2. Check if the target user has already liked the current user
-      const { data: reciprocalMatch, error: selectError } = await window.supabaseClient
+      const { data: reciprocalMatch, error: selectErr } = await window.supabaseClient
         .from('matches')
         .select('*')
         .eq('user_id', targetUser.id)
         .eq('target_user_id', currentUserId)
         .maybeSingle();
 
-      if (selectError) {
-        console.error("❌ Error checking for match:", selectError.message);
-      }
+      if (selectErr) console.error("Error checking mutual match:", selectErr.message);
 
-      // 3. If they like each other, create the room!
       if (reciprocalMatch) {
-        console.log("🎉 It's a match! Creating room...");
         createSharedSecretRoom(targetUser);
       }
     }
@@ -943,32 +1020,27 @@
       const sortedIds = [currentUserId, targetProfile.id].sort();
       const roomCode = `room_${sortedIds[0]}_${sortedIds[1]}`;
 
-      let { data: room } = await window.supabaseClient
+      let { data: room, error: roomError } = await window.supabaseClient
         .from('rooms')
         .select('*')
         .eq('room_code', roomCode)
         .maybeSingle();
 
       if (!room) {
-        const { data: newRoom, error } = await window.supabaseClient
+        const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
+        const roomName = `${myAlias} & ${targetProfile.alias}`;
+
+        const { data: newRoom, error: createError } = await window.supabaseClient
           .from('rooms')
-          .insert([{ 
-            room_code: roomCode, 
-            user1_id: sortedIds[0], 
-            user2_id: sortedIds[1],
-            user1_active: true,
-            user2_active: true
-          }])
+          .insert([{ room_name: roomName, room_code: roomCode, created_by: currentUserId }])
           .select()
           .single();
 
-        if (error) { console.error("Room creation error:", error.message); return; }
+        if (createError) {
+          console.error("Error creating room:", createError.message);
+          return;
+        }
         room = newRoom;
-      } else {
-        await window.supabaseClient
-          .from('rooms')
-          .update({ user1_active: true, user2_active: true })
-          .eq('id', room.id);
       }
 
       activeMatchedProfile = targetProfile;
@@ -979,91 +1051,72 @@
 
     window.enterMatchedRoomDirectly = function() {
       document.getElementById('match-overlay').classList.add('hidden');
-      if (activeRoomObj) openChatRoom(activeRoomObj);
+      if (activeRoomObj) {
+        openChatRoom(activeRoomObj);
+      }
     };
 
     async function renderRoomList() {
       const container = document.getElementById('secret-room-container');
-      container.innerHTML = '<div style="text-align:center; color:#8fa397; padding:20px;">Loading rooms...</div>';
+      container.innerHTML = '<div style="text-align:center; color:#8fa397; padding:20px;">Loading secret rooms...</div>';
 
       const { data: rooms, error } = await window.supabaseClient
         .from('rooms')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      if (error || !rooms) {
+      if (error) {
+        console.error("Error fetching rooms:", error.message);
         container.innerHTML = `<div style="text-align:center; color:#e84118; padding:20px;">Error loading rooms.</div>`;
         return;
       }
 
-      const userRooms = rooms.filter(r => {
-        if (r.user1_id === currentUserId && r.user1_active) return true;
-        if (r.user2_id === currentUserId && r.user2_active) return true;
-        return false;
-      });
+      const userRooms = (rooms || []).filter(r => r.room_code && r.room_code.includes(currentUserId));
 
       if (userRooms.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px;">No active secret rooms.</div>`;
+        container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active secret rooms.<br>Swipe LIKE on profile cards to match!</div>`;
         return;
       }
 
       container.innerHTML = '';
-      for (let room of userRooms) {
-        const partnerId = room.user1_id === currentUserId ? room.user2_id : room.user1_id;
-        
-        const { data: partnerProf } = await window.supabaseClient
-          .from('profiles')
-          .select('alias')
-          .eq('id', partnerId)
-          .maybeSingle();
-
-        const partnerAlias = partnerProf?.alias || 'Partner';
-
+      userRooms.forEach(room => {
         const item = document.createElement('div');
         item.className = 'room-list-item';
         item.innerHTML = `
           <div>
-            <div class="room-name">${partnerAlias}</div>
+            <div class="room-name">${room.room_name}</div>
             <div class="room-sub">Tap to enter secret chat</div>
           </div>
           <span style="color:#e0a96d; font-size:12px;">Open &gt;</span>
         `;
-        item.onclick = () => openChatRoom(room, partnerAlias);
+        item.onclick = () => openChatRoom(room);
         container.appendChild(item);
-      }
+      });
     }
 
-    async function openChatRoom(room, customPartnerName) {
+    async function openChatRoom(room) {
       activeRoomObj = room;
-
-      let partnerName = customPartnerName;
-      if (!partnerName) {
-        const partnerId = room.user1_id === currentUserId ? room.user2_id : room.user1_id;
-        const { data: partnerProf } = await window.supabaseClient
-          .from('profiles')
-          .select('alias')
-          .eq('id', partnerId)
-          .maybeSingle();
-        partnerName = partnerProf?.alias || 'Partner';
-      }
-
-      document.getElementById('chat-partner-name').innerText = partnerName;
+      document.getElementById('chat-partner-name').innerText = room.room_name;
 
       const revealBtn = document.getElementById('btn-reveal-10s');
       revealBtn.classList.remove('used');
       revealBtn.innerText = '👁️ Photo (10s)';
+
       setRoomInputDisabled(false);
 
       const msgsContainer = document.getElementById('chat-messages');
       msgsContainer.innerHTML = '<div style="text-align:center; color:#8fa397;">Loading chat history...</div>';
 
-      const { data: messages } = await window.supabaseClient
+      const { data: messages, error } = await window.supabaseClient
         .from('messages')
         .select('*')
         .eq('room_id', room.id)
         .order('created_at', { ascending: true });
 
       msgsContainer.innerHTML = '';
-      if (messages) messages.forEach(msg => renderMessageUI(msg));
+      if (messages) {
+        messages.forEach(msg => renderMessageUI(msg));
+      }
 
       if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
       chatSubscription = subscribeToLiveChat(room.id);
@@ -1077,7 +1130,9 @@
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
-          (payload) => { renderMessageUI(payload.new); }
+          (payload) => {
+            renderMessageUI(payload.new);
+          }
         )
         .subscribe();
     }
@@ -1090,25 +1145,35 @@
 
     window.trigger10sPhotoReveal = async function() {
       if (!activeRoomObj) return;
-      const targetId = activeRoomObj.user1_id === currentUserId ? activeRoomObj.user2_id : activeRoomObj.user1_id;
 
-      const { data: partnerData } = await window.supabaseClient
+      const targetId = activeRoomObj.room_code
+        .replace('room_', '')
+        .split('_')
+        .find(id => id !== currentUserId);
+
+      if (!targetId) return;
+
+      const { data: partnerData, error } = await window.supabaseClient
         .from('profiles')
         .select('photo_url')
         .eq('id', targetId)
         .maybeSingle();
 
-      if (!partnerData || !partnerData.photo_url) {
+      const partnerPhoto = partnerData ? partnerData.photo_url : null;
+
+      if (!partnerPhoto) {
         alert("This user has not uploaded a valid photo.");
         return;
       }
 
       const modal = document.getElementById('photo-modal');
-      document.getElementById('partner-photo-img').src = partnerData.photo_url;
+      const imgEl = document.getElementById('partner-photo-img');
+      const timerEl = document.getElementById('countdown-timer');
+
+      imgEl.src = partnerPhoto;
       modal.classList.remove('hidden');
 
       let secondsLeft = 10;
-      const timerEl = document.getElementById('countdown-timer');
       timerEl.innerText = `Self-destructing in ${secondsLeft}s`;
 
       const interval = setInterval(() => {
@@ -1143,20 +1208,6 @@
         content: `[SYSTEM]: ${myAlias} left the chat room.`
       }]);
 
-      const isUser1 = activeRoomObj.user1_id === currentUserId;
-      const updateData = isUser1 ? { user1_active: false } : { user2_active: false };
-
-      const { data: updatedRoom } = await window.supabaseClient
-        .from('rooms')
-        .update(updateData)
-        .eq('id', activeRoomObj.id)
-        .select()
-        .single();
-
-      if (updatedRoom && !updatedRoom.user1_active && !updatedRoom.user2_active) {
-        await window.supabaseClient.from('rooms').delete().eq('id', activeRoomObj.id);
-      }
-
       activeRoomObj = null;
       backToRoomList();
     };
@@ -1167,12 +1218,17 @@
       if (!text || !activeRoomObj) return;
 
       const senderAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
-      await window.supabaseClient.from('messages').insert([{
-        room_id: activeRoomObj.id,
-        sender_id: currentUserId,
-        sender_name: senderAlias,
-        content: text
-      }]);
+
+      const { error } = await window.supabaseClient
+        .from('messages')
+        .insert([{
+          room_id: activeRoomObj.id,
+          sender_id: currentUserId,
+          sender_name: senderAlias,
+          content: text
+        }]);
+
+      if (error) console.error("Error sending message:", error.message);
       input.value = '';
     };
 
@@ -1230,9 +1286,16 @@
         .from('avatars')
         .upload(filePath, file);
 
-      if (uploadError) { alert("Failed to upload photo: " + uploadError.message); return; }
+      if (uploadError) {
+        alert("Failed to upload photo: " + uploadError.message);
+        return;
+      }
 
-      const { data: publicUrlData } = window.supabaseClient.storage.from('avatars').getPublicUrl(filePath);
+      const { data: publicUrlData } = window.supabaseClient.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const photoUrl = publicUrlData.publicUrl;
       const prefix = selectedSendMode === 'view-once' ? '[VIEW_ONCE]:' : '[PHOTO]:';
       const senderAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
 
@@ -1240,7 +1303,7 @@
         room_id: activeRoomObj.id,
         sender_id: currentUserId,
         sender_name: senderAlias,
-        content: `${prefix}${publicUrlData.publicUrl}`
+        content: `${prefix}${photoUrl}`
       }]);
 
       event.target.value = '';
@@ -1248,12 +1311,15 @@
 
     function openViewOncePhoto(cardDiv, photoUrl) {
       if (cardDiv.classList.contains('destroyed')) return;
+
       const modal = document.getElementById('photo-modal');
-      document.getElementById('partner-photo-img').src = photoUrl;
+      const imgEl = document.getElementById('partner-photo-img');
+      const timerEl = document.getElementById('countdown-timer');
+
+      imgEl.src = photoUrl;
       modal.classList.remove('hidden');
 
       let secondsLeft = 10;
-      const timerEl = document.getElementById('countdown-timer');
       timerEl.innerText = `Self-destructing in ${secondsLeft}s`;
 
       const interval = setInterval(() => {
@@ -1272,11 +1338,17 @@
 
     async function loadProfileForm() {
       if (!currentEmail || !currentUserId) return;
-      const { data: p } = await window.supabaseClient
+
+      const { data: p, error } = await window.supabaseClient
         .from('profiles')
         .select('*')
         .eq('id', currentUserId)
         .maybeSingle();
+
+      if (error) {
+        console.error('Error loading profile:', error.message);
+        return;
+      }
 
       if (p) {
         currentUserProfile = p;
@@ -1286,10 +1358,18 @@
         document.getElementById('user-gender').value = p.gender || '';
         document.getElementById('user-about').value = p.about || '';
         document.getElementById('user-age').value = p.age || '';
-        document.getElementById('user-interests').value = Array.isArray(p.interests) ? p.interests.join(', ') : '';
+        document.getElementById('user-height').value = p.height || '';
+        document.getElementById('user-ethnicity').value = p.ethnicity || '';
+        document.getElementById('user-mbti').value = p.mbti || '';
+        document.getElementById('user-occupation').value = p.occupation || '';
+        document.getElementById('user-location').value = p.location || '';
+        document.getElementById('user-degree').value = p.degree || '';
+        document.getElementById('user-language').value = p.language || '';
+        document.getElementById('user-interests').value = Array.isArray(p.interests) ? p.interests.join(', ') : (p.interests || '');
+
+        const preview = document.getElementById('my-photo-preview');
         if (p.photo_url) {
           uploadedUserPhoto = p.photo_url;
-          const preview = document.getElementById('my-photo-preview');
           preview.src = p.photo_url;
           preview.style.display = 'block';
           document.getElementById('photo-label').innerText = "📷 Profile Photo Uploaded";
@@ -1300,6 +1380,7 @@
     window.previewUserPhoto = function(event) {
       const file = event.target.files[0];
       if (!file) return;
+
       selectedFileToUpload = file;
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -1307,6 +1388,7 @@
         preview.src = e.target.result;
         preview.style.display = 'block';
         document.getElementById('photo-label').innerText = "📷 Profile Photo Selected";
+        
         document.getElementById('photo-wrapper-box').classList.remove('error');
         document.getElementById('profile-error-box').classList.add('hidden');
       };
@@ -1315,28 +1397,42 @@
 
     window.saveProfile = async function() {
       if (!currentEmail || !currentUserId) return;
+
       if (!selectedFileToUpload && !uploadedUserPhoto) {
         document.getElementById('photo-wrapper-box').classList.add('error');
         document.getElementById('profile-error-box').classList.remove('hidden');
-        alert("Validation Required: Profile photo is mandatory.");
+        document.getElementById('slide-profile').scrollTop = 0;
+        alert("Validation Required: Profile photo is mandatory. Please upload a photo to save your profile.");
         return;
       }
 
+      const saveBtn = document.getElementById('save-profile-btn');
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Saving Profile...";
+
       let photoPublicUrl = uploadedUserPhoto;
+
       try {
         if (selectedFileToUpload) {
           const fileExt = selectedFileToUpload.name.split('.').pop();
           const filePath = `${currentUserId}/profile.${fileExt}`;
+
           const { error: uploadError } = await window.supabaseClient.storage
             .from('avatars')
             .upload(filePath, selectedFileToUpload, { upsert: true });
+
           if (uploadError) throw uploadError;
 
-          const { data: publicUrlData } = window.supabaseClient.storage.from('avatars').getPublicUrl(filePath);
+          const { data: publicUrlData } = window.supabaseClient.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+
           photoPublicUrl = publicUrlData.publicUrl;
         }
 
         const rawInterests = document.getElementById('user-interests').value;
+        const interestsArr = rawInterests ? rawInterests.split(',').map(s => s.trim()).filter(Boolean) : [];
+
         const profilePayload = {
           id: currentUserId,
           username: currentEmail,
@@ -1346,20 +1442,36 @@
           gender: document.getElementById('user-gender').value,
           about: document.getElementById('user-about').value.trim(),
           age: document.getElementById('user-age').value ? parseInt(document.getElementById('user-age').value) : null,
-          interests: rawInterests ? rawInterests.split(',').map(s => s.trim()).filter(Boolean) : [],
+          height: document.getElementById('user-height').value.trim(),
+          ethnicity: document.getElementById('user-ethnicity').value.trim(),
+          mbti: document.getElementById('user-mbti').value.trim(),
+          occupation: document.getElementById('user-occupation').value.trim(),
+          location: document.getElementById('user-location').value.trim(),
+          degree: document.getElementById('user-degree').value,
+          language: document.getElementById('user-language').value.trim(),
+          interests: interestsArr,
           photo_url: photoPublicUrl
         };
 
-        const { error: dbError } = await window.supabaseClient.from('profiles').upsert(profilePayload);
+        const { error: dbError } = await window.supabaseClient
+          .from('profiles')
+          .upsert(profilePayload);
+
         if (dbError) throw dbError;
 
         uploadedUserPhoto = photoPublicUrl;
-        selectedFileToUpload = false;
+        selectedFileToUpload = null;
         currentUserProfile = profilePayload;
-        alert("Profile saved successfully!");
+
+        alert("Profile completed & successfully saved to Supabase!");
+        activeCardProfile = null;
         switchSlide('match');
+
       } catch (err) {
         alert("Failed to save profile: " + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = "Save & Join Matching Pool";
       }
     };
   </script>
