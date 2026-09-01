@@ -908,17 +908,33 @@
       }, 300);
     }
 
+    // UPDATED handleUserLikeAction WITH ERROR LOGGING (Step 1)
     async function handleUserLikeAction(targetUser) {
-      await window.supabaseClient.from('matches').insert([{ user_id: currentUserId, target_user_id: targetUser.id }]);
+      // 1. Insert the current user's like
+      const { error: insertError } = await window.supabaseClient
+        .from('matches')
+        .insert([{ user_id: currentUserId, target_user_id: targetUser.id }]);
 
-      const { data: reciprocalMatch } = await window.supabaseClient
+      // Ignore duplicate like errors (if user liked them before), but log others
+      if (insertError && insertError.code !== '23505') { 
+        console.error("❌ Error inserting match:", insertError.message);
+      }
+
+      // 2. Check if the target user has already liked the current user
+      const { data: reciprocalMatch, error: selectError } = await window.supabaseClient
         .from('matches')
         .select('*')
         .eq('user_id', targetUser.id)
         .eq('target_user_id', currentUserId)
         .maybeSingle();
 
+      if (selectError) {
+        console.error("❌ Error checking for match:", selectError.message);
+      }
+
+      // 3. If they like each other, create the room!
       if (reciprocalMatch) {
+        console.log("🎉 It's a match! Creating room...");
         createSharedSecretRoom(targetUser);
       }
     }
@@ -934,7 +950,6 @@
         .maybeSingle();
 
       if (!room) {
-        // Initialize room tracking columns for user1 and user2 active status
         const { data: newRoom, error } = await window.supabaseClient
           .from('rooms')
           .insert([{ 
@@ -950,7 +965,6 @@
         if (error) { console.error("Room creation error:", error.message); return; }
         room = newRoom;
       } else {
-        // If room already existed (e.g. recreated after full deletion), reset active states for both
         await window.supabaseClient
           .from('rooms')
           .update({ user1_active: true, user2_active: true })
@@ -981,7 +995,6 @@
         return;
       }
 
-      // Filter rooms where current user is part of the room AND their active flag is true
       const userRooms = rooms.filter(r => {
         if (r.user1_id === currentUserId && r.user1_active) return true;
         if (r.user2_id === currentUserId && r.user2_active) return true;
@@ -995,10 +1008,8 @@
 
       container.innerHTML = '';
       for (let room of userRooms) {
-        // Determine the other user's ID
         const partnerId = room.user1_id === currentUserId ? room.user2_id : room.user1_id;
         
-        // Fetch partner profile to get their display name/alias
         const { data: partnerProf } = await window.supabaseClient
           .from('profiles')
           .select('alias')
@@ -1024,7 +1035,6 @@
     async function openChatRoom(room, customPartnerName) {
       activeRoomObj = room;
 
-      // Determine partner name if not passed directly
       let partnerName = customPartnerName;
       if (!partnerName) {
         const partnerId = room.user1_id === currentUserId ? room.user2_id : room.user1_id;
@@ -1036,7 +1046,6 @@
         partnerName = partnerProf?.alias || 'Partner';
       }
 
-      // Set the header name to the matched user's name
       document.getElementById('chat-partner-name').innerText = partnerName;
 
       const revealBtn = document.getElementById('btn-reveal-10s');
@@ -1127,7 +1136,6 @@
 
       const myAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
       
-      // 1. Leave message in chat for the other user
       await window.supabaseClient.from('messages').insert([{
         room_id: activeRoomObj.id,
         sender_id: currentUserId,
@@ -1135,7 +1143,6 @@
         content: `[SYSTEM]: ${myAlias} left the chat room.`
       }]);
 
-      // 2. Update active status flags for the current user
       const isUser1 = activeRoomObj.user1_id === currentUserId;
       const updateData = isUser1 ? { user1_active: false } : { user2_active: false };
 
@@ -1146,7 +1153,6 @@
         .select()
         .single();
 
-      // 3. If BOTH users have set their active flags to false, completely delete the room row from Supabase
       if (updatedRoom && !updatedRoom.user1_active && !updatedRoom.user2_active) {
         await window.supabaseClient.from('rooms').delete().eq('id', activeRoomObj.id);
       }
