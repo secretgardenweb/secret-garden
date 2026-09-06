@@ -824,6 +824,37 @@
       let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
       let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
 
+      // Fetch active rooms and matches to exclude users already matched or in secret rooms
+      const { data: userRooms } = await window.supabaseClient
+        .from('rooms')
+        .select('room_code, user1_id, user2_id')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+
+      const { data: userMatches } = await window.supabaseClient
+        .from('matches')
+        .select('user_id, target_user_id')
+        .or(`user_id.eq.${currentUserId},target_user_id.eq.${currentUserId}`);
+
+      let excludedIds = [...dismissedUserIds, currentUserId];
+
+      if (userRooms) {
+        userRooms.forEach(room => {
+          if (room.user1_id && room.user1_id !== currentUserId) excludedIds.push(room.user1_id);
+          if (room.user2_id && room.user2_id !== currentUserId) excludedIds.push(room.user2_id);
+          if (room.room_code) {
+            const parts = room.room_code.replace('room_', '').split('_');
+            parts.forEach(id => { if (id && id !== currentUserId) excludedIds.push(id); });
+          }
+        });
+      }
+
+      if (userMatches) {
+        userMatches.forEach(m => {
+          if (m.user_id && m.user_id !== currentUserId) excludedIds.push(m.user_id);
+          if (m.target_user_id && m.target_user_id !== currentUserId) excludedIds.push(m.target_user_id);
+        });
+      }
+
       let query = window.supabaseClient.from('profiles').select('*').neq('id', currentUserId);
       if (selectedGenderPref !== 'any') query = query.ilike('gender', selectedGenderPref);
 
@@ -831,7 +862,7 @@
       if (error || !data) return null;
 
       const eligibleProfiles = data.filter(targetProf => {
-        if (!targetProf.photo_url || dismissedUserIds.includes(targetProf.id)) return false;
+        if (!targetProf.photo_url || excludedIds.includes(targetProf.id)) return false;
         if (targetProf.age) {
           const ageNum = parseInt(targetProf.age);
           if (ageNum < minAge || ageNum > maxAge) return false;
@@ -988,7 +1019,6 @@
         .maybeSingle();
 
       if (!room) {
-        // Requirement 1: Room name set precisely to the other user's name alias[cite: 7]
         const roomName = targetProfile.alias;
 
         const { data: newRoom, error: createError } = await window.supabaseClient
@@ -1041,7 +1071,6 @@
 
       container.innerHTML = '';
       userRooms.forEach(async room => {
-        // Fetch target user id dynamically to label the list item with their correct alias name
         const otherUserId = room.room_code.replace('room_', '').split('_').find(id => id !== currentUserId);
         let displayName = room.room_name;
 
@@ -1090,7 +1119,6 @@
         }
       }
 
-      // Requirement 1: Room header explicitly shows the other side user name[cite: 7]
       document.getElementById('chat-partner-name').innerText = partnerAlias;
 
       const revealBtn = document.getElementById('btn-reveal-10s');
@@ -1115,7 +1143,6 @@
       document.getElementById('active-chat-view').classList.remove('hidden');
     }
 
-    // Requirement 1: Open other user profile view when clicking their name in the header[cite: 7]
     window.openPartnerProfileFromChat = function() {
       if (!activeMatchedProfile) return;
       const p = activeMatchedProfile;
@@ -1147,21 +1174,18 @@
         .subscribe();
     }
 
-    // Requirement 2: Pressing back (Rooms button) returns to list without deleting the room[cite: 7]
     window.backToRoomList = function() {
       if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
       document.getElementById('active-chat-view').classList.add('hidden');
       switchSlide('rooms');
     };
 
-    // Requirement 2: Pressing quit button inside room automatically deletes the room for users[cite: 7]
     window.quitSecretRoom = async function() {
       if (!activeRoomObj) return;
 
       const confirmQuit = confirm("Are you sure you want to quit and permanently delete this secret room?");
       if (!confirmQuit) return;
 
-      // Delete room from Supabase database (messages tied to room can cascade delete or be cleaned up)
       await window.supabaseClient.from('messages').delete().eq('room_id', activeRoomObj.id);
       const { error } = await window.supabaseClient.from('rooms').delete().eq('id', activeRoomObj.id);
 
