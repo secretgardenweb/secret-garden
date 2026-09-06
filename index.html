@@ -457,7 +457,7 @@
       <!-- SLIDE 3: EDIT PROFILE VIEW -->
       <div id="slide-profile" class="view hidden form-padding">
         <div class="setup-title">Edit Profile</div>
-        <div class="setup-subtitle">Photo is required to save. All other profile details are optional.</div>
+        <div class="setup-subtitle">Photo is required to save and appear in matching pool. All other details are optional.</div>
 
         <div id="profile-error-box" class="warning-box hidden">
           ⚠️ <strong>Photo Required:</strong> You must upload a profile photo before you can save your profile and enter the matching pool.
@@ -573,7 +573,6 @@
       <div id="active-chat-view" class="view hidden">
         <div class="chat-header">
           <button class="chat-header-btn" onclick="backToRoomList()">&lt; Rooms</button>
-          <!-- Clicking the chat partner name opens their profile -->
           <span id="chat-partner-name" style="font-weight: 700; color: #e0a96d; font-size:15px; cursor:pointer; text-decoration:underline;" onclick="openPartnerProfileFromChat()">#Partner</span>
           <button id="btn-reveal-10s" class="reveal-header-btn" onclick="trigger10sPhotoReveal()">👁️ Photo (10s)</button>
           <button class="chat-header-btn quit" onclick="quitSecretRoom()">Quit</button>
@@ -824,7 +823,6 @@
       let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
       let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
 
-      // Fetch active rooms and matches to exclude users already matched or in secret rooms
       const { data: userRooms } = await window.supabaseClient
         .from('rooms')
         .select('room_code, user1_id, user2_id')
@@ -862,6 +860,7 @@
       if (error || !data) return null;
 
       const eligibleProfiles = data.filter(targetProf => {
+        // FIX: Ensuring strict check so profiles missing a photo_url are filtered out
         if (!targetProf.photo_url || excludedIds.includes(targetProf.id)) return false;
         if (targetProf.age) {
           const ageNum = parseInt(targetProf.age);
@@ -902,7 +901,7 @@
       deckEl.innerHTML = '';
 
       if (!activeCardProfile) {
-        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the garden right now.<br><br>Adjust your Preferences or check back soon!</div>`;
+        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the garden right now.<br><br>Make sure you have saved your profile with a photo, or adjust your Preferences!</div>`;
         return;
       }
 
