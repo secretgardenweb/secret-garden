@@ -1000,7 +1000,7 @@
         return;
       }
 
-      const userRooms = (rooms || []).filter(r => r.room_code && r.room_code.includes(currentUserId));
+      const userRooms = (rooms || []).filter(r => (r.user1_id === currentUserId || r.user2_id === currentUserId));
 
       if (userRooms.length === 0) {
         container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active rooms.<br>Swipe LIKE on profile cards to match!</div>`;
@@ -1008,8 +1008,8 @@
       }
 
       container.innerHTML = '';
-      userRooms.forEach(async room => {
-        const otherUserId = room.room_code.replace('room_', '').split('_').find(id => id !== currentUserId);
+      for (const room of userRooms) {
+        const otherUserId = room.user1_id === currentUserId ? room.user2_id : room.user1_id;
         let displayName = room.room_name;
 
         if (otherUserId) {
@@ -1028,13 +1028,13 @@
         `;
         item.onclick = () => openChatRoom(room, displayName);
         container.appendChild(item);
-      });
+      }
     }
 
     async function openChatRoom(room, customName) {
       activeRoomObj = room;
       
-      const otherUserId = room.room_code.replace('room_', '').split('_').find(id => id !== currentUserId);
+      const otherUserId = room.user1_id === currentUserId ? room.user2_id : room.user1_id;
       let partnerAlias = customName || room.room_name;
 
       if (otherUserId) {
@@ -1134,7 +1134,7 @@
 
     window.trigger10sPhotoReveal = async function() {
       if (!activeRoomObj) return;
-      const targetId = activeRoomObj.room_code.replace('room_', '').split('_').find(id => id !== currentUserId);
+      const targetId = activeRoomObj.user1_id === currentUserId ? activeRoomObj.user2_id : activeRoomObj.user1_id;
       if (!targetId) return;
 
       const { data: partnerData } = await window.supabaseClient.from('profiles').select('photo_url').eq('id', targetId).maybeSingle();
