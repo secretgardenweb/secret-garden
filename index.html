@@ -130,7 +130,6 @@
       text-align: center; 
       cursor: pointer; 
       margin-bottom: 8px; 
-      transition: border-color 0.3s ease;
     }
     .file-input-wrapper input { display: none; }
     .file-label { font-size: 13px; color: #e0a96d; font-weight: 600; }
@@ -296,11 +295,8 @@
     .chat-input-area { padding: 12px; background: #0f1713; border-top: 1px solid rgba(62, 107, 82, 0.25); position: relative; }
     .chat-input-row { display: flex; gap: 8px; align-items: center; }
     .chat-input { flex: 1; background: #16241d; border: 1px solid rgba(62, 107, 82, 0.4); border-radius: 20px; padding: 10px 16px; color: white; outline: none; }
-    .chat-input:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-icon { background: rgba(224, 169, 109, 0.15); color: #e0a96d; border: 1px solid rgba(224, 169, 109, 0.3); width: 40px; height: 40px; border-radius: 50%; font-size: 18px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-    .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-send { background: #e0a96d; color: #0b0f0d; border: none; padding: 10px 18px; border-radius: 20px; font-weight: 700; cursor: pointer; }
-    .btn-send:disabled { opacity: 0.4; cursor: not-allowed; }
 
     #photo-popover { 
       position: absolute; 
@@ -337,7 +333,6 @@
     .watermark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, 0.35); font-weight: 900; font-size: 14px; transform: rotate(-25deg); pointer-events: none; text-align: center; line-height: 1.6; letter-spacing: 1px; }
     .timer-badge { margin-top: 18px; color: #e0a96d; font-weight: 700; font-size: 16px; }
 
-    /* PARTNER PROFILE MODAL */
     #profile-modal { position: absolute; inset: 0; background: rgba(6, 9, 7, 0.95); z-index: 450; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
     .profile-modal-content { background: linear-gradient(160deg, #16241d 0%, #0f1914 100%); border-radius: 20px; border: 1px solid rgba(82, 138, 106, 0.3); padding: 20px; margin-top: auto; margin-bottom: auto; }
     .profile-photo-lg { width: 100%; height: 240px; border-radius: 14px; object-fit: cover; margin-bottom: 16px; border: 1px solid #e0a96d; }
@@ -358,7 +353,7 @@
 
     <div class="view-container">
 
-      <!-- 0. LOGIN / SIGN UP VIEW -->
+      <!-- LOGIN / SIGN UP VIEW -->
       <div id="auth-view" class="view form-padding">
         <div class="setup-title" id="auth-title">Sign In</div>
         <div class="setup-subtitle" id="auth-subtitle">Enter your secret credentials to enter the garden.</div>
@@ -385,7 +380,7 @@
         </div>
       </div>
 
-      <!-- SLIDE 1: MATCHING PLACE (Swipe Cards) -->
+      <!-- MATCHING PLACE (Swipe Cards) -->
       <div id="slide-match" class="view hidden">
         <div id="deck-header">
           <span style="font-size:12px; font-weight:800; color:#a4cbb5; letter-spacing:1px; text-transform:uppercase;">Discover Profiles</span>
@@ -400,7 +395,7 @@
         </div>
       </div>
 
-      <!-- SLIDE 1B: MATCH PREFERENCE SLIDE -->
+      <!-- MATCH PREFERENCE SLIDE -->
       <div id="slide-preference" class="view hidden form-padding">
         <div class="setup-title">Matching Preferences</div>
         <div class="setup-subtitle">Filter profiles from the global pool.</div>
@@ -418,11 +413,11 @@
           <label>Age Range Filter (18 - 99)</label>
           <div class="form-row">
             <div class="form-group">
-              <input type="number" id="pref-age-min" min="18" max="99" placeholder="Min (18)">
+              <input type="number" id="pref-age-min" min="18" max="99" value="18" placeholder="Min (18)">
             </div>
             <div style="display:flex; align-items:center; color:#8fa397; font-weight:bold;">-</div>
             <div class="form-group">
-              <input type="number" id="pref-age-max" min="18" max="99" placeholder="Max (99)">
+              <input type="number" id="pref-age-max" min="18" max="99" value="99" placeholder="Max (99)">
             </div>
           </div>
         </div>
@@ -431,18 +426,18 @@
         <button class="btn-primary" style="margin-bottom: 20px;" onclick="savePreferences()">Save Preferences</button>
       </div>
 
-      <!-- SLIDE 2: SECRET ROOM LIST -->
+      <!-- SECRET ROOM LIST -->
       <div id="slide-rooms" class="view hidden">
         <div style="padding:16px 16px 8px; font-weight:700; color:#a4cbb5; font-size:12px; text-transform:uppercase; letter-spacing:1px;">
-          Active Secret Rooms (Unlimited)
+          Active Secret Rooms (Matches)
         </div>
         <div id="secret-room-container"></div>
       </div>
 
-      <!-- SLIDE 3: EDIT PROFILE VIEW -->
+      <!-- EDIT PROFILE VIEW -->
       <div id="slide-profile" class="view hidden form-padding">
         <div class="setup-title">Edit Profile</div>
-        <div class="setup-subtitle">All information in your profile is completely optional.</div>
+        <div class="setup-subtitle">Complete your profile to appear in the matching deck.</div>
 
         <div class="file-input-wrapper" id="photo-wrapper-box" onclick="document.getElementById('user-photo').click()">
           <div class="file-label" id="photo-label">📷 Upload Secret Photo (Optional)</div>
@@ -450,101 +445,82 @@
           <img id="my-photo-preview" class="photo-preview" alt="Preview">
         </div>
         <div class="photo-notice">
-          🔒 <strong>Confidentiality Notice:</strong> Profile photos stay hidden until revealed inside a secret room.
+          🔒 <strong>Confidentiality Notice:</strong> Profile photos stay hidden until revealed inside a secret chat room.
         </div>
 
         <div class="form-group">
-          <label>Profile Display Name (Public Alias) <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+          <label>Profile Display Name (Public Alias)</label>
           <input type="text" id="user-alias" placeholder="e.g. #NightOwl">
         </div>
 
         <div class="form-group">
-          <label>Looking For <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
-          <input type="text" id="user-looking-for" placeholder="e.g. Serious relationship, casual chat, coffee buddy...">
+          <label>Looking For</label>
+          <input type="text" id="user-looking-for" placeholder="e.g. Serious relationship, coffee buddy...">
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Gender <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+            <label>Gender</label>
             <select id="user-gender">
-              <option value="">-- Optional --</option>
+              <option value="">-- Select --</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Age <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+            <label>Age</label>
             <input type="number" id="user-age" min="18" max="99" placeholder="e.g. 26">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Marital Status <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+            <label>Marital Status</label>
             <select id="user-marital">
-              <option value="">-- Optional --</option>
+              <option value="">-- Select --</option>
               <option value="Single">Single</option>
               <option value="In Relationship">In Relationship</option>
               <option value="Married">Married</option>
-              <option value="Separated">Separated</option>
               <option value="Divorced">Divorced</option>
-              <option value="Widowed">Widowed</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Height (cm) <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+            <label>Height (cm)</label>
             <input type="text" id="user-height" placeholder="e.g. 175 cm">
           </div>
         </div>
 
         <div class="form-group">
-          <label>About Me <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
-          <textarea id="user-about" placeholder="Share your hobbies, favorite chill spots, etc..."></textarea>
+          <label>About Me</label>
+          <textarea id="user-about" placeholder="Share your hobbies, favorite chill spots..."></textarea>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Ethnicity <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+            <label>Ethnicity</label>
             <input type="text" id="user-ethnicity" placeholder="e.g. Asian">
           </div>
           <div class="form-group">
-            <label>MBTI Personality <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+            <label>MBTI Personality</label>
             <input type="text" id="user-mbti" placeholder="e.g. ENFP">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Occupation <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+            <label>Occupation</label>
             <input type="text" id="user-occupation" placeholder="e.g. Finance / Tech">
           </div>
           <div class="form-group">
-            <label>District / Area <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
+            <label>District / Area</label>
             <input type="text" id="user-location" placeholder="e.g. Downtown">
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label>Education Level <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
-            <select id="user-degree">
-              <option value="">-- Optional --</option>
-              <option>Secondary School</option>
-              <option>Associate / Higher Diploma</option>
-              <option>Bachelor's Degree</option>
-              <option>Master's / Doctorate</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Spoken Languages <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
-            <input type="text" id="user-language" placeholder="e.g. English">
-          </div>
-        </div>
-
         <div class="form-group">
-          <label>Interests (Comma separated) <span style="font-weight:400; color:#8fa397;">- Optional</span></label>
-          <input type="text" id="user-interests" placeholder="e.g. Cafe Hopping, Hiking, Nightlife, Gaming">
+          <label>Interests (Comma separated)</label>
+          <input type="text" id="user-interests" placeholder="e.g. Cafe Hopping, Hiking, Gaming">
         </div>
 
         <button class="btn-primary" id="save-profile-btn" style="margin-top:12px; margin-bottom: 24px;" onclick="saveProfile()">Save & Join Matching Pool</button>
@@ -570,9 +546,9 @@
           <input type="file" id="chat-photo-input" accept="image/*" class="hidden" onchange="handleChatPhotoUpload(event)">
 
           <div class="chat-input-row">
-            <button class="btn-icon" id="btn-photo-opt" onclick="togglePhotoPopover()">📷</button>
+            <button class="btn-icon" onclick="togglePhotoPopover()">📷</button>
             <input type="text" class="chat-input" id="message-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
-            <button class="btn-send" id="btn-send-msg" onclick="sendMessage()">Send</button>
+            <button class="btn-send" onclick="sendMessage()">Send</button>
           </div>
         </div>
       </div>
@@ -581,7 +557,7 @@
 
     <!-- MATCH OVERLAY MODAL -->
     <div id="match-overlay" class="hidden">
-      <h1>It's a Match</h1>
+      <h1>It's a Match!</h1>
       <p>Both you and <span id="match-alias" style="color:#e0a96d; font-weight:bold;"></span> liked each other!</p>
       <button class="btn-primary" onclick="enterMatchedRoomDirectly()">Enter Secret Room</button>
     </div>
@@ -589,7 +565,7 @@
     <!-- ONE-TIME PHOTO VIEWER MODAL -->
     <div id="photo-modal" class="hidden">
       <div class="photo-wrapper">
-        <div class="watermark" id="watermark-overlay">SECRET GARDEN<br>CONFIDENTIAL VIEW</div>
+        <div class="watermark">SECRET GARDEN<br>CONFIDENTIAL VIEW</div>
         <img id="partner-photo-img" src="" alt="Secret Reveal">
       </div>
       <div class="timer-badge" id="countdown-timer">Self-destructing in 10s</div>
@@ -630,7 +606,7 @@
       </button>
       <button class="nav-btn" id="tab-rooms" onclick="switchSlide('rooms')">
         <svg viewBox="0 0 24 24" width="20" height="20"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
-        Secret Rooms
+        Rooms
       </button>
       <button class="nav-btn" id="tab-profile" onclick="switchSlide('profile')">
         <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
@@ -658,7 +634,6 @@
     let selectedSendMode = 'normal';
     let selectedGenderPref = 'any';
     
-    // Queue for displaying all profiles sequentially on match slide
     let profileQueue = [];
     let currentCardProfile = null;
     let dismissedUserIds = [];
@@ -684,23 +659,16 @@
 
     window.toggleAuthMode = function() {
       isSignUp = !isSignUp;
-      const titleEl = document.getElementById('auth-title');
-      const subtitleEl = document.getElementById('auth-subtitle');
-      const submitBtn = document.getElementById('auth-submit-btn');
-      const toggleText = document.getElementById('auth-toggle-text');
+      document.getElementById('auth-title').innerText = isSignUp ? "Create Account" : "Sign In";
+      document.getElementById('auth-subtitle').innerText = isSignUp ? "Register with a valid Email and Password." : "Enter your secret credentials to enter the garden.";
+      document.getElementById('auth-submit-btn').innerText = isSignUp ? "Register Account" : "Enter Secret Garden";
+      document.getElementById('auth-toggle-text').innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Now";
+
       const confirmGroup = document.getElementById('auth-confirm-pass-group');
-
-      if (titleEl) titleEl.innerText = isSignUp ? "Create Account" : "Sign In";
-      if (subtitleEl) subtitleEl.innerText = isSignUp ? "Register with a valid Email and Password." : "Enter your secret credentials to enter the garden.";
-      if (submitBtn) submitBtn.innerText = isSignUp ? "Register Account" : "Enter Secret Garden";
-      if (toggleText) toggleText.innerText = isSignUp ? "Already have an account? Sign In" : "Don't have an account? Register Now";
-
-      if (confirmGroup) {
-        if (isSignUp) confirmGroup.classList.remove('hidden');
-        else {
-          confirmGroup.classList.add('hidden');
-          document.getElementById('auth-confirm-pass').value = '';
-        }
+      if (isSignUp) confirmGroup.classList.remove('hidden');
+      else {
+        confirmGroup.classList.add('hidden');
+        document.getElementById('auth-confirm-pass').value = '';
       }
     };
 
@@ -722,15 +690,15 @@
 
         const { error } = await window.supabaseClient.auth.signUp({
           email: emailInput,
-          password: passInput,
-          options: { emailRedirectTo: 'https://mc777bbg.github.io/secret-garden/' }
+          password: passInput
         });
 
         if (error) {
           alert("Registration Failed: " + error.message);
           return;
         }
-        alert("Account registered! Sign in now.");
+        alert("Account registered successfully! You can now sign in.");
+        toggleAuthMode();
       } else {
         const { error } = await window.supabaseClient.auth.signInWithPassword({ email: emailInput, password: passInput });
         if (error) {
@@ -751,7 +719,6 @@
       dismissedUserIds = [];
       document.getElementById('auth-email').value = '';
       document.getElementById('auth-pass').value = '';
-      document.getElementById('auth-confirm-pass').value = '';
       document.getElementById('auth-view').classList.remove('hidden');
     };
 
@@ -794,13 +761,7 @@
     };
 
     window.savePreferences = function() {
-      let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
-      let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
-      if (minAge < 18) minAge = 18;
-      if (maxAge > 99) maxAge = 99;
-      if (minAge > maxAge) minAge = maxAge;
-      
-      profileQueue = []; // Clear queue to force reload with new preferences
+      profileQueue = [];
       currentCardProfile = null;
       switchSlide('match');
     };
@@ -826,10 +787,6 @@
         userRooms.forEach(room => {
           if (room.user1_id && room.user1_id !== currentUserId) excludedIds.push(room.user1_id);
           if (room.user2_id && room.user2_id !== currentUserId) excludedIds.push(room.user2_id);
-          if (room.room_code) {
-            const parts = room.room_code.replace('room_', '').split('_');
-            parts.forEach(id => { if (id && id !== currentUserId) excludedIds.push(id); });
-          }
         });
       }
 
@@ -869,8 +826,6 @@
           mbti: chosen.mbti || '',
           occupation: chosen.occupation || '',
           location: chosen.location || '',
-          degree: chosen.degree || '',
-          language: chosen.language || '',
           interests: chosen.interests || [],
           photo: chosen.photo_url || ''
         }));
@@ -887,7 +842,7 @@
       deckEl.innerHTML = '';
 
       if (profileQueue.length === 0) {
-        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No more profiles available in the garden right now.<br><br>Check back later or adjust your Preferences!</div>`;
+        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No more profiles available right now.<br><br>Check back later or adjust your Preferences!</div>`;
         return;
       }
 
@@ -907,7 +862,7 @@
         <div class="card-body">
           <div class="hidden-photo-box">
             <span>🔒 Confidential Profile Photo</span>
-            <span style="font-weight:400; font-size:10px; color:#8fa397; margin-top:4px;">Photo visible for 10s inside secret room.</span>
+            <span style="font-weight:400; font-size:10px; color:#8fa397; margin-top:4px;">Photo visible inside secret room.</span>
           </div>
           ${profile.lookingFor ? `<div class="section-title">Looking For</div><div class="about-box" style="color:#e0a96d; font-weight:600;">${profile.lookingFor}</div>` : ''}
           ${profile.about ? `<div class="section-title">About Me</div><div class="about-box">${profile.about}</div>` : ''}
@@ -1004,12 +959,10 @@
         .maybeSingle();
 
       if (!room) {
-        const roomName = targetProfile.alias;
-
         const { data: newRoom, error: createError } = await window.supabaseClient
           .from('rooms')
           .insert([{ 
-            room_name: roomName, 
+            room_name: targetProfile.alias, 
             room_code: roomCode, 
             created_by: currentUserId,
             user1_id: sortedIds[0],
@@ -1050,7 +1003,7 @@
       const userRooms = (rooms || []).filter(r => r.room_code && r.room_code.includes(currentUserId));
 
       if (userRooms.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active secret rooms.<br>Swipe LIKE on profile cards to match!</div>`;
+        container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active rooms.<br>Swipe LIKE on profile cards to match!</div>`;
         return;
       }
 
@@ -1069,7 +1022,7 @@
         item.innerHTML = `
           <div>
             <div class="room-name">${displayName}</div>
-            <div class="room-sub">Tap to enter secret chat</div>
+            <div class="room-sub">Tap to enter chat room</div>
           </div>
           <span style="color:#e0a96d; font-size:12px;">Open &gt;</span>
         `;
@@ -1168,16 +1121,10 @@
     window.quitSecretRoom = async function() {
       if (!activeRoomObj) return;
 
-      const confirmQuit = confirm("Are you sure you want to quit and permanently delete this secret room?");
-      if (!confirmQuit) return;
+      if (!confirm("Are you sure you want to unmatch and delete this room?")) return;
 
       await window.supabaseClient.from('messages').delete().eq('room_id', activeRoomObj.id);
-      const { error } = await window.supabaseClient.from('rooms').delete().eq('id', activeRoomObj.id);
-
-      if (error) {
-        alert("Failed to delete room: " + error.message);
-        return;
-      }
+      await window.supabaseClient.from('rooms').delete().eq('id', activeRoomObj.id);
 
       activeRoomObj = null;
       if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
@@ -1199,13 +1146,11 @@
       }
 
       const modal = document.getElementById('photo-modal');
-      const imgEl = document.getElementById('partner-photo-img');
-      const timerEl = document.getElementById('countdown-timer');
-
-      imgEl.src = partnerPhoto;
+      document.getElementById('partner-photo-img').src = partnerPhoto;
       modal.classList.remove('hidden');
 
       let secondsLeft = 10;
+      const timerEl = document.getElementById('countdown-timer');
       timerEl.innerText = `Self-destructing in ${secondsLeft}s`;
 
       const interval = setInterval(() => {
@@ -1241,12 +1186,7 @@
       const msgsContainer = document.getElementById('chat-messages');
       let isSentByMe = msgObj.sender_id === currentUserId;
 
-      if (msgObj.sender_name === 'system' || msgObj.content.startsWith('[SYSTEM]:')) {
-        const sysDiv = document.createElement('div');
-        sysDiv.className = 'message system';
-        sysDiv.innerText = msgObj.content.replace('[SYSTEM]:', '').trim();
-        msgsContainer.appendChild(sysDiv);
-      } else if (msgObj.content.startsWith('[PHOTO]:')) {
+      if (msgObj.content.startsWith('[PHOTO]:')) {
         const imgSrc = msgObj.content.replace('[PHOTO]:', '');
         const msgDiv = document.createElement('div');
         msgDiv.className = `message ${isSentByMe ? 'sent' : 'received'} chat-photo-msg`;
@@ -1294,7 +1234,6 @@
       }
 
       const { data: publicUrlData } = window.supabaseClient.storage.from('avatars').getPublicUrl(filePath);
-      const photoUrl = publicUrlData.publicUrl;
       const prefix = selectedSendMode === 'view-once' ? '[VIEW_ONCE]:' : '[PHOTO]:';
       const senderAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
 
@@ -1302,7 +1241,7 @@
         room_id: activeRoomObj.id,
         sender_id: currentUserId,
         sender_name: senderAlias,
-        content: `${prefix}${photoUrl}`
+        content: `${prefix}${publicUrlData.publicUrl}`
       }]);
       event.target.value = '';
     };
@@ -1310,13 +1249,11 @@
     function openViewOncePhoto(cardDiv, photoUrl) {
       if (cardDiv.classList.contains('destroyed')) return;
       const modal = document.getElementById('photo-modal');
-      const imgEl = document.getElementById('partner-photo-img');
-      const timerEl = document.getElementById('countdown-timer');
-
-      imgEl.src = photoUrl;
+      document.getElementById('partner-photo-img').src = photoUrl;
       modal.classList.remove('hidden');
 
       let secondsLeft = 10;
+      const timerEl = document.getElementById('countdown-timer');
       timerEl.innerText = `Self-destructing in ${secondsLeft}s`;
 
       const interval = setInterval(() => {
@@ -1349,9 +1286,7 @@
         document.getElementById('user-mbti').value = p.mbti || '';
         document.getElementById('user-occupation').value = p.occupation || '';
         document.getElementById('user-location').value = p.location || '';
-        document.getElementById('user-degree').value = p.degree || '';
-        document.getElementById('user-language').value = p.language || '';
-        document.getElementById('user-interests').value = Array.isArray(p.interests) ? p.interests.join(', ') : (p.interests || '');
+        document.getElementById('user-interests').value = Array.isArray(p.interests) ? p.interests.join(', ') : '';
 
         const preview = document.getElementById('my-photo-preview');
         if (p.photo_url) {
@@ -1413,8 +1348,6 @@
           mbti: document.getElementById('user-mbti').value.trim(),
           occupation: document.getElementById('user-occupation').value.trim(),
           location: document.getElementById('user-location').value.trim(),
-          degree: document.getElementById('user-degree').value,
-          language: document.getElementById('user-language').value.trim(),
           interests: interestsArr,
           photo_url: photoPublicUrl
         };
@@ -1427,7 +1360,7 @@
         currentUserProfile = profilePayload;
 
         alert("Profile successfully saved!");
-        profileQueue = []; // Reset queue so updated profile pool reloads
+        profileQueue = [];
         currentCardProfile = null;
         switchSlide('match');
       } catch (err) {
