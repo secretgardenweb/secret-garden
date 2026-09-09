@@ -105,17 +105,6 @@
     .form-padding { padding: 22px; }
     .setup-title { font-size: 22px; font-weight: 700; color: #f2f5f3; margin-bottom: 6px; letter-spacing: -0.5px; }
     .setup-subtitle { font-size: 13px; color: #8fa397; margin-bottom: 18px; line-height: 1.4; }
-    
-    .warning-box {
-      background: rgba(232, 65, 24, 0.12);
-      border: 1px dashed rgba(232, 65, 24, 0.4);
-      color: #ff6b6b;
-      padding: 10px 12px;
-      border-radius: 12px;
-      font-size: 11px;
-      line-height: 1.4;
-      margin-bottom: 18px;
-    }
 
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #a4cbb5; margin-bottom: 6px; letter-spacing: 0.8px; }
@@ -142,10 +131,6 @@
       cursor: pointer; 
       margin-bottom: 8px; 
       transition: border-color 0.3s ease;
-    }
-    .file-input-wrapper.error {
-      border: 2px dashed #ff4757 !important;
-      background: rgba(255, 71, 87, 0.1);
     }
     .file-input-wrapper input { display: none; }
     .file-label { font-size: 13px; color: #e0a96d; font-weight: 600; }
@@ -457,19 +442,15 @@
       <!-- SLIDE 3: EDIT PROFILE VIEW -->
       <div id="slide-profile" class="view hidden form-padding">
         <div class="setup-title">Edit Profile</div>
-        <div class="setup-subtitle">Photo is required to save and appear in matching pool. All other details are optional.</div>
-
-        <div id="profile-error-box" class="warning-box hidden">
-          ⚠️ <strong>Photo Required:</strong> You must upload a profile photo before you can save your profile and enter the matching pool.
-        </div>
+        <div class="setup-subtitle">All information in your profile is completely optional.</div>
 
         <div class="file-input-wrapper" id="photo-wrapper-box" onclick="document.getElementById('user-photo').click()">
-          <div class="file-label" id="photo-label">📷 Upload Secret Photo * (Required)</div>
+          <div class="file-label" id="photo-label">📷 Upload Secret Photo (Optional)</div>
           <input type="file" id="user-photo" accept="image/*" onchange="previewUserPhoto(event)">
           <img id="my-photo-preview" class="photo-preview" alt="Preview">
         </div>
         <div class="photo-notice">
-          🔒 <strong>Confidentiality Notice:</strong> Profile photos are strictly required to activate matching, but stay hidden until revealed inside a secret room.
+          🔒 <strong>Confidentiality Notice:</strong> Profile photos stay hidden until revealed inside a secret room.
         </div>
 
         <div class="form-group">
@@ -676,7 +657,10 @@
     let uploadedUserPhoto = null;
     let selectedSendMode = 'normal';
     let selectedGenderPref = 'any';
-    let activeCardProfile = null;
+    
+    // Queue for displaying all profiles sequentially on match slide
+    let profileQueue = [];
+    let currentCardProfile = null;
     let dismissedUserIds = [];
     let chatSubscription = null;
 
@@ -762,7 +746,8 @@
       isLoggedIn = false;
       currentEmail = null;
       currentUserId = null;
-      activeCardProfile = null;
+      profileQueue = [];
+      currentCardProfile = null;
       dismissedUserIds = [];
       document.getElementById('auth-email').value = '';
       document.getElementById('auth-pass').value = '';
@@ -814,12 +799,14 @@
       if (minAge < 18) minAge = 18;
       if (maxAge > 99) maxAge = 99;
       if (minAge > maxAge) minAge = maxAge;
-      activeCardProfile = null;
+      
+      profileQueue = []; // Clear queue to force reload with new preferences
+      currentCardProfile = null;
       switchSlide('match');
     };
 
-    async function getRandomPoolProfile() {
-      if (!currentEmail || !currentUserId) return null;
+    async function fetchAllEligibleProfiles() {
+      if (!currentEmail || !currentUserId) return [];
       let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
       let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
 
@@ -857,54 +844,55 @@
       if (selectedGenderPref !== 'any') query = query.ilike('gender', selectedGenderPref);
 
       const { data, error } = await query;
-      if (error || !data) return null;
+      if (error || !data) return [];
 
-      const eligibleProfiles = data.filter(targetProf => {
-        if (excludedIds.includes(targetProf.id)) return false;
-        if (targetProf.age) {
-          const ageNum = parseInt(targetProf.age);
-          if (ageNum < minAge || ageNum > maxAge) return false;
-        }
-        return true;
-      });
-
-      if (eligibleProfiles.length === 0) return null;
-      const chosen = eligibleProfiles[Math.floor(Math.random() * eligibleProfiles.length)];
-
-      return {
-        id: chosen.id,
-        username: chosen.username,
-        alias: chosen.alias || 'Anonymous User',
-        lookingFor: chosen.looking_for || '',
-        maritalStatus: chosen.marital_status || '',
-        gender: chosen.gender || '',
-        about: chosen.about || '',
-        age: chosen.age || '',
-        height: chosen.height || '',
-        ethnicity: chosen.ethnicity || '',
-        mbti: chosen.mbti || '',
-        occupation: chosen.occupation || '',
-        location: chosen.location || '',
-        degree: chosen.degree || '',
-        language: chosen.language || '',
-        interests: chosen.interests || [],
-        photo: chosen.photo_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80'
-      };
+      return data
+        .filter(targetProf => {
+          if (excludedIds.includes(targetProf.id)) return false;
+          if (targetProf.age) {
+            const ageNum = parseInt(targetProf.age);
+            if (ageNum < minAge || ageNum > maxAge) return false;
+          }
+          return true;
+        })
+        .map(chosen => ({
+          id: chosen.id,
+          username: chosen.username,
+          alias: chosen.alias || 'Anonymous User',
+          lookingFor: chosen.looking_for || '',
+          maritalStatus: chosen.marital_status || '',
+          gender: chosen.gender || '',
+          about: chosen.about || '',
+          age: chosen.age || '',
+          height: chosen.height || '',
+          ethnicity: chosen.ethnicity || '',
+          mbti: chosen.mbti || '',
+          occupation: chosen.occupation || '',
+          location: chosen.location || '',
+          degree: chosen.degree || '',
+          language: chosen.language || '',
+          interests: chosen.interests || [],
+          photo: chosen.photo_url || ''
+        }));
     }
 
     async function renderDeck() {
       const deckEl = document.getElementById('deck');
-      deckEl.innerHTML = '<div style="text-align:center; color:#8fa397; margin-top:140px;">Searching for secret profiles...</div>';
+      deckEl.innerHTML = '<div style="text-align:center; color:#8fa397; margin-top:140px;">Loading secret profiles...</div>';
 
-      if (!activeCardProfile) activeCardProfile = await getRandomPoolProfile();
+      if (profileQueue.length === 0) {
+        profileQueue = await fetchAllEligibleProfiles();
+      }
+
       deckEl.innerHTML = '';
 
-      if (!activeCardProfile) {
-        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the garden right now.<br><br>Make sure you have saved your profile or adjust your Preferences!</div>`;
+      if (profileQueue.length === 0) {
+        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No more profiles available in the garden right now.<br><br>Check back later or adjust your Preferences!</div>`;
         return;
       }
 
-      const profile = activeCardProfile;
+      currentCardProfile = profileQueue.shift();
+      const profile = currentCardProfile;
       const card = document.createElement('div');
       card.className = 'card';
       const interestsList = Array.isArray(profile.interests) ? profile.interests : [];
@@ -984,11 +972,10 @@
       card.style.transform = `translateX(${flyX}px) rotate(${flyX * 0.05}deg)`;
       card.style.opacity = 0;
 
-      const targetUser = activeCardProfile;
+      const targetUser = currentCardProfile;
       if (targetUser) dismissedUserIds.push(targetUser.id);
 
       setTimeout(async () => {
-        activeCardProfile = await getRandomPoolProfile();
         renderDeck();
         if (isLike && targetUser) handleUserLikeAction(targetUser);
       }, 300);
@@ -1146,7 +1133,7 @@
       const p = activeMatchedProfile;
 
       document.getElementById('m-profile-alias').innerText = p.alias;
-      document.getElementById('m-profile-photo').src = p.photo || '';
+      document.getElementById('m-profile-photo').src = p.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80';
       document.getElementById('m-profile-looking').innerText = p.lookingFor || 'N/A';
       document.getElementById('m-profile-about').innerText = p.about || 'N/A';
       document.getElementById('m-profile-marital').innerText = p.maritalStatus || 'N/A';
@@ -1207,7 +1194,7 @@
       const partnerPhoto = partnerData ? partnerData.photo_url : null;
 
       if (!partnerPhoto) {
-        alert("This user has not uploaded a valid photo.");
+        alert("This user has not uploaded a profile photo.");
         return;
       }
 
@@ -1386,27 +1373,18 @@
         preview.src = e.target.result;
         preview.style.display = 'block';
         document.getElementById('photo-label').innerText = "📷 Profile Photo Selected";
-        document.getElementById('photo-wrapper-box').classList.remove('error');
-        document.getElementById('profile-error-box').classList.add('hidden');
       };
       reader.readAsDataURL(file);
     };
 
     window.saveProfile = async function() {
       if (!currentEmail || !currentUserId) return;
-      if (!selectedFileToUpload && !uploadedUserPhoto) {
-        document.getElementById('photo-wrapper-box').classList.add('error');
-        document.getElementById('profile-error-box').classList.remove('hidden');
-        document.getElementById('slide-profile').scrollTop = 0;
-        alert("Validation Required: Profile photo is mandatory.");
-        return;
-      }
 
       const saveBtn = document.getElementById('save-profile-btn');
       saveBtn.disabled = true;
       saveBtn.innerText = "Saving Profile...";
 
-      let photoPublicUrl = uploadedUserPhoto;
+      let photoPublicUrl = uploadedUserPhoto || null;
       try {
         if (selectedFileToUpload) {
           const fileExt = selectedFileToUpload.name.split('.').pop();
@@ -1449,7 +1427,8 @@
         currentUserProfile = profilePayload;
 
         alert("Profile successfully saved!");
-        activeCardProfile = null;
+        profileQueue = []; // Reset queue so updated profile pool reloads
+        currentCardProfile = null;
         switchSlide('match');
       } catch (err) {
         alert("Failed to save profile: " + err.message);
