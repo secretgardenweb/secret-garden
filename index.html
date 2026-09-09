@@ -860,8 +860,7 @@
       if (error || !data) return null;
 
       const eligibleProfiles = data.filter(targetProf => {
-        // FIX: Ensuring strict check so profiles missing a photo_url are filtered out
-        if (!targetProf.photo_url || excludedIds.includes(targetProf.id)) return false;
+        if (excludedIds.includes(targetProf.id)) return false;
         if (targetProf.age) {
           const ageNum = parseInt(targetProf.age);
           if (ageNum < minAge || ageNum > maxAge) return false;
@@ -889,7 +888,7 @@
         degree: chosen.degree || '',
         language: chosen.language || '',
         interests: chosen.interests || [],
-        photo: chosen.photo_url
+        photo: chosen.photo_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80'
       };
     }
 
@@ -901,7 +900,7 @@
       deckEl.innerHTML = '';
 
       if (!activeCardProfile) {
-        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the garden right now.<br><br>Make sure you have saved your profile with a photo, or adjust your Preferences!</div>`;
+        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No profile available in the garden right now.<br><br>Make sure you have saved your profile or adjust your Preferences!</div>`;
         return;
       }
 
