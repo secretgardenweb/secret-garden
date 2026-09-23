@@ -736,6 +736,7 @@
       if (slideName === 'match') {
         document.getElementById('slide-match').classList.remove('hidden');
         document.getElementById('tab-match').classList.add('active');
+        profileQueue = [];
         renderDeck();
       } else if (slideName === 'rooms') {
         document.getElementById('slide-rooms').classList.remove('hidden');
@@ -766,50 +767,61 @@
       switchSlide('match');
     };
 
-    async function fetchAllEligibleProfiles() {
-      if (!currentEmail || !currentUserId) return [];
-      let minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
-      let maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
+    // FIX: only people I already swiped are excluded. People who liked ME must
+    // stay in the deck, otherwise a mutual match can never happen.
+    let lastDeckError = null;
 
+    async function fetchAllEligibleProfiles() {
+      lastDeckError = null;
+      if (!currentUserId) return [];
+
+      const minAgeRaw = document.getElementById('pref-age-min').value;
+      const maxAgeRaw = document.getElementById('pref-age-max').value;
+      const minAge = minAgeRaw ? parseInt(minAgeRaw) : 18;
+      const maxAge = maxAgeRaw ? parseInt(maxAgeRaw) : 99;
+
+      const excludedIds = new Set([currentUserId, ...dismissedUserIds]);
+
+      // People I already liked/passed on
+      const { data: myMatches } = await window.supabaseClient
+        .from('matches')
+        .select('target_user_id')
+        .eq('user_id', currentUserId);
+      (myMatches || []).forEach(m => m.target_user_id && excludedIds.add(m.target_user_id));
+
+      // People I already share a room with
       const { data: userRooms } = await window.supabaseClient
         .from('rooms')
-        .select('room_code, user1_id, user2_id')
+        .select('user1_id, user2_id')
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+      (userRooms || []).forEach(r => {
+        if (r.user1_id && r.user1_id !== currentUserId) excludedIds.add(r.user1_id);
+        if (r.user2_id && r.user2_id !== currentUserId) excludedIds.add(r.user2_id);
+      });
 
-      const { data: userMatches } = await window.supabaseClient
-        .from('matches')
-        .select('user_id, target_user_id')
-        .or(`user_id.eq.${currentUserId},target_user_id.eq.${currentUserId}`);
+      // FIX: no gender filter in the SQL query. Filtering server-side with ilike
+      // silently dropped every profile whose gender was empty/differently cased.
+      const { data, error } = await window.supabaseClient
+        .from('profiles')
+        .select('*')
+        .neq('id', currentUserId);
 
-      let excludedIds = [...dismissedUserIds, currentUserId];
-
-      if (userRooms) {
-        userRooms.forEach(room => {
-          if (room.user1_id && room.user1_id !== currentUserId) excludedIds.push(room.user1_id);
-          if (room.user2_id && room.user2_id !== currentUserId) excludedIds.push(room.user2_id);
-        });
+      if (error) {
+        console.error('[deck] profiles read failed:', error);
+        lastDeckError = error.message || 'Profiles could not be read.';
+        return [];
       }
-
-      if (userMatches) {
-        userMatches.forEach(m => {
-          if (m.user_id && m.user_id !== currentUserId) excludedIds.push(m.user_id);
-          if (m.target_user_id && m.target_user_id !== currentUserId) excludedIds.push(m.target_user_id);
-        });
-      }
-
-      let query = window.supabaseClient.from('profiles').select('*').neq('id', currentUserId);
-      if (selectedGenderPref !== 'any') query = query.ilike('gender', selectedGenderPref);
-
-      const { data, error } = await query;
-      if (error || !data) return [];
+      if (!data) return [];
 
       return data
-        .filter(targetProf => {
-          if (excludedIds.includes(targetProf.id)) return false;
-          if (targetProf.age) {
-            const ageNum = parseInt(targetProf.age);
-            if (ageNum < minAge || ageNum > maxAge) return false;
+        .filter(t => {
+          if (excludedIds.has(t.id)) return false;
+          if (selectedGenderPref !== 'any') {
+            const g = (t.gender || '').toLowerCase();
+            if (g && g !== selectedGenderPref.toLowerCase()) return false;
           }
+          const ageNum = parseInt(t.age);
+          if (!isNaN(ageNum) && (ageNum < minAge || ageNum > maxAge)) return false;
           return true;
         })
         .map(chosen => ({
@@ -826,7 +838,7 @@
           mbti: chosen.mbti || '',
           occupation: chosen.occupation || '',
           location: chosen.location || '',
-          interests: chosen.interests || [],
+          interests: Array.isArray(chosen.interests) ? chosen.interests : [],
           photo: chosen.photo_url || ''
         }));
     }
@@ -842,7 +854,9 @@
       deckEl.innerHTML = '';
 
       if (profileQueue.length === 0) {
-        deckEl.innerHTML = `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No more profiles available right now.<br><br>Check back later or adjust your Preferences!</div>`;
+        deckEl.innerHTML = lastDeckError
+          ? `<div style="text-align:center; color:#e84118; margin-top:140px; padding:20px; line-height:1.5;">Could not load profiles.<br><br><span style="color:#8fa397; font-size:12px;">${lastDeckError}</span></div>`
+          : `<div style="text-align:center; color:#8fa397; margin-top:140px; padding:20px; line-height:1.5;">No more profiles available right now.<br><br>Check back later or adjust your Preferences!</div>`;
         return;
       }
 
@@ -937,15 +951,18 @@
     }
 
     async function handleUserLikeAction(targetUser) {
-      await window.supabaseClient.from('matches').insert([{ user_id: currentUserId, target_user_id: targetUser.id }]);
+      const { error: likeError } = await window.supabaseClient
+        .from('matches')
+        .upsert([{ user_id: currentUserId, target_user_id: targetUser.id }], { onConflict: 'user_id,target_user_id' });
+      if (likeError) console.error('[like] could not save like:', likeError);
       const { data: reciprocalMatch } = await window.supabaseClient
         .from('matches')
         .select('*')
         .eq('user_id', targetUser.id)
         .eq('target_user_id', currentUserId)
-        .maybeSingle();
+        .limit(1);
 
-      if (reciprocalMatch) createSharedSecretRoom(targetUser);
+      if (reciprocalMatch && reciprocalMatch.length > 0) createSharedSecretRoom(targetUser);
     }
 
     async function createSharedSecretRoom(targetProfile) {
