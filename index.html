@@ -847,6 +847,8 @@
       const deckEl = document.getElementById('deck');
       deckEl.innerHTML = '<div style="text-align:center; color:#8fa397; margin-top:140px;">Loading secret profiles...</div>';
 
+      await syncMutualMatches();
+
       if (profileQueue.length === 0) {
         profileQueue = await fetchAllEligibleProfiles();
       }
@@ -950,53 +952,151 @@
       }, 300);
     }
 
+    // ---------------------------------------------------------------
+    // MATCH ENGINE (rewritten)
+    // Bug that was here before: the like was saved with .upsert(), which
+    // Postgres runs as INSERT ... ON CONFLICT DO UPDATE. The matches table
+    // has no UPDATE grant/policy, so the whole statement was rejected and
+    // the like never reached the database -> no mutual match, no room.
+    // Now: plain insert, duplicates ignored, every error surfaced.
+    // ---------------------------------------------------------------
+    async function saveLike(targetUserId) {
+      const { error } = await window.supabaseClient
+        .from('matches')
+        .insert([{ user_id: currentUserId, target_user_id: targetUserId }]);
+
+      // 23505 = already liked before. That is fine.
+      if (error && error.code !== '23505') {
+        console.error('[like] could not save like:', error);
+        alert('Your LIKE could not be saved: ' + (error.message || 'unknown error'));
+        return false;
+      }
+      return true;
+    }
+
     async function handleUserLikeAction(targetUser) {
-      const { error: likeError } = await window.supabaseClient
+      const saved = await saveLike(targetUser.id);
+      if (!saved) return;
+
+      const { data: reciprocal, error: recError } = await window.supabaseClient
         .from('matches')
-        .upsert([{ user_id: currentUserId, target_user_id: targetUser.id }], { onConflict: 'user_id,target_user_id' });
-      if (likeError) console.error('[like] could not save like:', likeError);
-      const { data: reciprocalMatch } = await window.supabaseClient
-        .from('matches')
-        .select('*')
+        .select('id')
         .eq('user_id', targetUser.id)
         .eq('target_user_id', currentUserId)
         .limit(1);
 
-      if (reciprocalMatch && reciprocalMatch.length > 0) createSharedSecretRoom(targetUser);
+      if (recError) {
+        console.error('[match] could not check reciprocal like:', recError);
+        alert('Could not check for a mutual match: ' + (recError.message || 'unknown error'));
+        return;
+      }
+
+      if (reciprocal && reciprocal.length > 0) {
+        const room = await ensureRoomWith(targetUser.id, targetUser.alias);
+        if (room) showMatchOverlay(room, targetUser);
+      }
     }
 
-    async function createSharedSecretRoom(targetProfile) {
-      const sortedIds = [currentUserId, targetProfile.id].sort();
+    // Creates (or finds) the shared room for a mutual pair. Returns the room.
+    async function ensureRoomWith(otherUserId, otherAlias) {
+      const sortedIds = [currentUserId, otherUserId].sort();
       const roomCode = `room_${sortedIds[0]}_${sortedIds[1]}`;
 
-      let { data: room } = await window.supabaseClient
+      const { data: existing, error: findError } = await window.supabaseClient
         .from('rooms')
         .select('*')
         .eq('room_code', roomCode)
         .maybeSingle();
 
-      if (!room) {
-        const { data: newRoom, error: createError } = await window.supabaseClient
-          .from('rooms')
-          .insert([{ 
-            room_name: targetProfile.alias, 
-            room_code: roomCode, 
-            created_by: currentUserId,
-            user1_id: sortedIds[0],
-            user2_id: sortedIds[1]
-          }])
-          .select()
-          .single();
+      if (findError) console.error('[room] lookup failed:', findError);
+      if (existing) return existing;
 
-        if (createError) return;
-        room = newRoom;
+      const { data: newRoom, error: createError } = await window.supabaseClient
+        .from('rooms')
+        .insert([{
+          room_name: otherAlias || 'Secret Room',
+          room_code: roomCode,
+          created_by: currentUserId,
+          user1_id: sortedIds[0],
+          user2_id: sortedIds[1]
+        }])
+        .select()
+        .single();
+
+      if (!createError) return newRoom;
+
+      // Both sides may create at the same instant -> unique clash. Re-read it.
+      if (createError.code === '23505') {
+        const { data: raced } = await window.supabaseClient
+          .from('rooms')
+          .select('*')
+          .eq('room_code', roomCode)
+          .maybeSingle();
+        if (raced) return raced;
       }
 
+      console.error('[room] could not create chat room:', createError);
+      alert('The chat room could not be created: ' + (createError.message || 'unknown error'));
+      return null;
+    }
+
+    function showMatchOverlay(room, targetProfile) {
       activeMatchedProfile = targetProfile;
       activeRoomObj = room;
-      document.getElementById('match-alias').innerText = targetProfile.alias;
+      document.getElementById('match-alias').innerText = targetProfile.alias || 'your match';
       document.getElementById('match-overlay').classList.remove('hidden');
     }
+
+    // The person who liked FIRST is offline when the second like lands, so
+    // nothing creates their room at that moment. This sweep runs whenever the
+    // Match tab or Rooms tab opens: any pair that liked each other but has no
+    // room yet gets one.
+    let syncingMatches = false;
+    async function syncMutualMatches() {
+      if (!currentUserId || syncingMatches) return;
+      syncingMatches = true;
+      try {
+        const { data: likes, error } = await window.supabaseClient
+          .from('matches')
+          .select('user_id, target_user_id')
+          .or(`user_id.eq.${currentUserId},target_user_id.eq.${currentUserId}`);
+
+        if (error) { console.error('[sync] could not read likes:', error); return; }
+
+        const iLiked = new Set();
+        const likedMe = new Set();
+        (likes || []).forEach(l => {
+          if (l.user_id === currentUserId) iLiked.add(l.target_user_id);
+          if (l.target_user_id === currentUserId) likedMe.add(l.user_id);
+        });
+
+        const mutual = [...iLiked].filter(id => likedMe.has(id));
+        if (mutual.length === 0) return;
+
+        const { data: rooms } = await window.supabaseClient
+          .from('rooms')
+          .select('user1_id, user2_id')
+          .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+
+        const partnered = new Set();
+        (rooms || []).forEach(r => {
+          partnered.add(r.user1_id === currentUserId ? r.user2_id : r.user1_id);
+        });
+
+        for (const otherId of mutual) {
+          if (partnered.has(otherId)) continue;
+          const { data: prof } = await window.supabaseClient
+            .from('profiles')
+            .select('alias')
+            .eq('id', otherId)
+            .maybeSingle();
+          await ensureRoomWith(otherId, (prof && prof.alias) || 'Secret Room');
+        }
+      } finally {
+        syncingMatches = false;
+      }
+    }
+    window.syncMutualMatches = syncMutualMatches;
 
     window.enterMatchedRoomDirectly = function() {
       document.getElementById('match-overlay').classList.add('hidden');
@@ -1006,6 +1106,8 @@
     async function renderRoomList() {
       const container = document.getElementById('secret-room-container');
       container.innerHTML = '<div style="text-align:center; color:#8fa397; padding:20px;">Loading secret rooms...</div>';
+
+      await syncMutualMatches();
 
       const { data: rooms, error } = await window.supabaseClient
         .from('rooms')
