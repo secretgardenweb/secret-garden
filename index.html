@@ -1119,7 +1119,11 @@
         return;
       }
 
-      const userRooms = (rooms || []).filter(r => (r.user1_id === currentUserId || r.user2_id === currentUserId));
+      const userRooms = (rooms || []).filter(r => {
+        if (r.user1_id === currentUserId) return !r.user1_left;
+        if (r.user2_id === currentUserId) return !r.user2_left;
+        return false;
+      });
 
       if (userRooms.length === 0) {
         container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active rooms.<br>Swipe LIKE on profile cards to match!</div>`;
@@ -1141,7 +1145,7 @@
         item.innerHTML = `
           <div>
             <div class="room-name">${displayName}</div>
-            <div class="room-sub">Tap to enter chat room</div>
+            <div class="room-sub">${partnerHasLeft(room) ? '<span style="color:#e84118;">Your match has quit this room</span>' : 'Tap to enter chat room'}</div>
           </div>
           <span style="color:#e0a96d; font-size:12px;">Open &gt;</span>
         `;
@@ -1197,7 +1201,20 @@
       if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
       chatSubscription = subscribeToLiveChat(room.id);
 
+      applyRoomLockState(room);
       document.getElementById('active-chat-view').classList.remove('hidden');
+    }
+
+    function partnerHasLeft(room) {
+      if (!room) return false;
+      return room.user1_id === currentUserId ? !!room.user2_left : !!room.user1_left;
+    }
+
+    function applyRoomLockState(room) {
+      const input = document.getElementById('message-input');
+      const locked = partnerHasLeft(room);
+      input.disabled = locked;
+      input.placeholder = locked ? 'Your match has quit. Press Quit to remove this room.' : 'Type a message...';
     }
 
     window.openPartnerProfileFromChat = function() {
@@ -1227,6 +1244,10 @@
         .channel(`room:${roomId}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, (payload) => {
           renderMessageUI(payload.new);
+          if (payload.new && payload.new.content && payload.new.content.startsWith('[SYSTEM_QUIT]:') && payload.new.sender_id !== currentUserId && activeRoomObj) {
+            if (activeRoomObj.user1_id === currentUserId) activeRoomObj.user2_left = true; else activeRoomObj.user1_left = true;
+            applyRoomLockState(activeRoomObj);
+          }
         })
         .subscribe();
     }
@@ -1239,11 +1260,37 @@
 
     window.quitSecretRoom = async function() {
       if (!activeRoomObj) return;
+      if (!confirm("Are you sure you want to quit this room? It will be removed from your list.")) return;
 
-      if (!confirm("Are you sure you want to unmatch and delete this room?")) return;
+      const room = activeRoomObj;
+      const iAmUser1 = room.user1_id === currentUserId;
+      const myFlag = iAmUser1 ? 'user1_left' : 'user2_left';
+      const otherAlreadyLeft = partnerHasLeft(room);
+      const myAlias = currentUserProfile?.alias || (currentEmail || '').split('@')[0] || 'Your match';
 
-      await window.supabaseClient.from('messages').delete().eq('room_id', activeRoomObj.id);
-      await window.supabaseClient.from('rooms').delete().eq('id', activeRoomObj.id);
+      if (!otherAlreadyLeft) {
+        // Leave a "quitted" note for the other person
+        const { error: msgErr } = await window.supabaseClient.from('messages').insert([{
+          room_id: room.id,
+          sender_id: currentUserId,
+          sender_name: myAlias,
+          content: `[SYSTEM_QUIT]:${myAlias} has quit this chat room.`
+        }]);
+        if (msgErr) console.warn('[quit] could not post quit message:', msgErr);
+      }
+
+      // Hide the room for me only (the room itself is kept so you are not re-matched)
+      const { error: upErr } = await window.supabaseClient
+        .from('rooms').update({ [myFlag]: true }).eq('id', room.id);
+      if (upErr) {
+        alert('Could not quit the room: ' + upErr.message);
+        return;
+      }
+
+      // Both sides have quit: wipe the chat history
+      if (otherAlreadyLeft) {
+        await window.supabaseClient.from('messages').delete().eq('room_id', room.id);
+      }
 
       activeRoomObj = null;
       if (chatSubscription) window.supabaseClient.removeChannel(chatSubscription);
@@ -1290,6 +1337,7 @@
       const input = document.getElementById('message-input');
       const text = input.value.trim();
       if (!text || !activeRoomObj) return;
+      if (partnerHasLeft(activeRoomObj)) { alert('Your match has quit this room.'); return; }
 
       const senderAlias = currentUserProfile?.alias || currentEmail.split('@')[0];
       await window.supabaseClient.from('messages').insert([{
@@ -1305,7 +1353,12 @@
       const msgsContainer = document.getElementById('chat-messages');
       let isSentByMe = msgObj.sender_id === currentUserId;
 
-      if (msgObj.content.startsWith('[PHOTO]:')) {
+      if (msgObj.content.startsWith('[SYSTEM_QUIT]:')) {
+        const note = document.createElement('div');
+        note.style.cssText = 'align-self:center; text-align:center; color:#e84118; font-size:12px; background:rgba(232,65,24,0.1); border:1px solid rgba(232,65,24,0.3); padding:6px 12px; border-radius:12px; margin:8px 0;';
+        note.innerText = isSentByMe ? 'You quit this chat room.' : msgObj.content.replace('[SYSTEM_QUIT]:', '');
+        msgsContainer.appendChild(note);
+      } else if (msgObj.content.startsWith('[PHOTO]:')) {
         const imgSrc = msgObj.content.replace('[PHOTO]:', '');
         const msgDiv = document.createElement('div');
         msgDiv.className = `message ${isSentByMe ? 'sent' : 'received'} chat-photo-msg`;
