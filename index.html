@@ -565,7 +565,6 @@
     <!-- ONE-TIME PHOTO VIEWER MODAL -->
     <div id="photo-modal" class="hidden">
       <div class="photo-wrapper">
-        <div class="watermark">SECRET GARDEN<br>CONFIDENTIAL VIEW</div>
         <img id="partner-photo-img" src="" alt="Secret Reveal">
       </div>
       <div class="timer-badge" id="countdown-timer">Self-destructing in 10s</div>
@@ -578,7 +577,7 @@
           <div id="m-profile-alias" style="font-size:20px; font-weight:bold; color:#fff;">Alias</div>
           <button style="background:none; border:none; color:#e0a96d; font-size:16px; cursor:pointer; font-weight:bold;" onclick="closePartnerProfileModal()">✕ Close</button>
         </div>
-        <img id="m-profile-photo" class="profile-photo-lg" src="" alt="Profile Photo">
+        <div class="profile-photo-lg" style="display:flex;align-items:center;justify-content:center;background:rgba(62,107,82,0.2);color:#8fa397;font-weight:600;text-align:center;">🔒 Photo hidden<br>Use the 👁️ Photo (10s) button to view once</div>
         
         <div class="section-title">Looking For</div>
         <div class="about-box" id="m-profile-looking" style="color:#e0a96d; font-weight:600;">N/A</div>
@@ -1182,9 +1181,19 @@
 
       document.getElementById('chat-partner-name').innerText = partnerAlias;
 
+      viewedItems = new Set();
+      const { data: views } = await window.supabaseClient
+        .from('photo_views').select('item').eq('room_id', room.id).eq('viewer_id', currentUserId);
+      if (views) views.forEach(v => viewedItems.add(v.item));
+
       const revealBtn = document.getElementById('btn-reveal-10s');
-      revealBtn.classList.remove('used');
-      revealBtn.innerText = '👁️ Photo (10s)';
+      if (viewedItems.has('profile')) {
+        revealBtn.classList.add('used');
+        revealBtn.innerText = 'Photo Expired';
+      } else {
+        revealBtn.classList.remove('used');
+        revealBtn.innerText = '👁️ Photo (10s)';
+      }
 
       const msgsContainer = document.getElementById('chat-messages');
       msgsContainer.innerHTML = '<div style="text-align:center; color:#8fa397;">Loading chat history...</div>';
@@ -1205,6 +1214,21 @@
       document.getElementById('active-chat-view').classList.remove('hidden');
     }
 
+    let viewedItems = new Set();
+
+    // Records that I have used a one-view photo, so it never comes back
+    async function markViewed(item) {
+      viewedItems.add(item);
+      const { error } = await window.supabaseClient.from('photo_views').insert([{
+        room_id: activeRoomObj.id, viewer_id: currentUserId, item: item
+      }]);
+      if (error && error.code !== '23505') {
+        console.warn('[view-once] could not save view:', error);
+        return false;
+      }
+      return true;
+    }
+
     function partnerHasLeft(room) {
       if (!room) return false;
       return room.user1_id === currentUserId ? !!room.user2_left : !!room.user1_left;
@@ -1222,7 +1246,6 @@
       const p = activeMatchedProfile;
 
       document.getElementById('m-profile-alias').innerText = p.alias;
-      document.getElementById('m-profile-photo').src = p.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80';
       document.getElementById('m-profile-looking').innerText = p.lookingFor || 'N/A';
       document.getElementById('m-profile-about').innerText = p.about || 'N/A';
       document.getElementById('m-profile-marital').innerText = p.maritalStatus || 'N/A';
@@ -1302,6 +1325,7 @@
       if (!activeRoomObj) return;
       const targetId = activeRoomObj.user1_id === currentUserId ? activeRoomObj.user2_id : activeRoomObj.user1_id;
       if (!targetId) return;
+      if (viewedItems.has('profile')) { alert('You have already viewed this photo.'); return; }
 
       const { data: partnerData } = await window.supabaseClient.from('profiles').select('photo_url').eq('id', targetId).maybeSingle();
       const partnerPhoto = partnerData ? partnerData.photo_url : null;
@@ -1310,6 +1334,12 @@
         alert("This user has not uploaded a profile photo.");
         return;
       }
+
+      const saved = await markViewed('profile');
+      if (!saved) { alert('Could not open the photo. Please try again.'); return; }
+      const revealBtnNow = document.getElementById('btn-reveal-10s');
+      revealBtnNow.classList.add('used');
+      revealBtnNow.innerText = 'Photo Expired';
 
       const modal = document.getElementById('photo-modal');
       document.getElementById('partner-photo-img').src = partnerPhoto;
@@ -1370,7 +1400,12 @@
         cardDiv.style.alignSelf = isSentByMe ? 'flex-end' : 'flex-start';
         cardDiv.innerHTML = `<span>🔥 Tap to view confidential photo</span>`;
         const photoUrl = msgObj.content.replace('[VIEW_ONCE]:', '');
-        cardDiv.onclick = () => openViewOncePhoto(cardDiv, photoUrl);
+        if (viewedItems.has('msg_' + msgObj.id)) {
+          cardDiv.classList.add('destroyed');
+          cardDiv.innerHTML = `<span>🔥 View-Once Photo (Self-Destructed)</span>`;
+        } else {
+          cardDiv.onclick = () => openViewOncePhoto(cardDiv, photoUrl, msgObj.id);
+        }
         msgsContainer.appendChild(cardDiv);
       } else {
         const msgDiv = document.createElement('div');
@@ -1418,8 +1453,13 @@
       event.target.value = '';
     };
 
-    function openViewOncePhoto(cardDiv, photoUrl) {
+    async function openViewOncePhoto(cardDiv, photoUrl, messageId) {
       if (cardDiv.classList.contains('destroyed')) return;
+      const itemKey = 'msg_' + messageId;
+      if (viewedItems.has(itemKey)) return;
+      const saved = await markViewed(itemKey);
+      if (!saved) { alert('Could not open the photo. Please try again.'); return; }
+      cardDiv.onclick = null;
       const modal = document.getElementById('photo-modal');
       document.getElementById('partner-photo-img').src = photoUrl;
       modal.classList.remove('hidden');
