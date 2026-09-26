@@ -646,7 +646,11 @@
           isLoggedIn = true;
           document.getElementById('auth-view').classList.add('hidden');
           await loadProfileForm();
-          switchSlide('match');
+          if (isProfileComplete()) switchSlide('match');
+          else {
+            switchSlide('profile');
+            alert("Welcome to Secret Garden! Please fill in and save your profile first (Name, Gender and Age are required) before you can start matching.");
+          }
         } else {
           isLoggedIn = false;
           currentEmail = null;
@@ -723,6 +727,10 @@
 
     window.switchSlide = function(slideName) {
       if (!isLoggedIn) return;
+      if ((slideName === 'match' || slideName === 'rooms') && !isProfileComplete()) {
+        alert("Please fill in and save your profile first (Name, Gender and Age are required).");
+        slideName = 'profile';
+      }
 
       document.getElementById('slide-match').classList.add('hidden');
       document.getElementById('slide-preference').classList.add('hidden');
@@ -770,7 +778,64 @@
     // stay in the deck, otherwise a mutual match can never happen.
     let lastDeckError = null;
 
+    // ---------------------------------------------------------------
+    // 60 DEMO PROFILES (20 male, 40 female, age 18-40).
+    // They live only in this page (not in Supabase). Liking them never
+    // creates a match - they just fill up the matching pool.
+    // ---------------------------------------------------------------
+    const FAKE_PROFILES = (function() {
+      let seed = 20260926;
+      const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+      const pick = arr => arr[Math.floor(rnd() * arr.length)];
+      const maleNames = ['Ethan','Lucas','Kai','Ryan','Jason','Leo','Marcus','Daniel','Aaron','Nathan','Owen','Vincent','Kevin','Adrian','Brian','Felix','Samuel','Hugo','Ivan','Jayden'];
+      const femaleNames = ['Chloe','Mia','Sophie','Emma','Grace','Luna','Ivy','Zoe','Olivia','Hannah','Jasmine','Bella','Aria','Ella','Nina','Ruby','Stella','Iris','Amber','Coco','Daisy','Elena','Fiona','Gigi','Hazel','Jade','Kelly','Lily','Maya','Nora','Pearl','Queenie','Rose','Sara','Tina','Una','Vivian','Wendy','Yuki','Zara'];
+      const looking = ['Something serious','Casual dating','New friends','A long-term partner','Someone to explore the city with','Not sure yet, let\'s see'];
+      const marital = ['Single','Single','Single','Divorced','Separated'];
+      const ethnicity = ['Asian','Chinese','Japanese','Korean','Filipino','Caucasian','Mixed','Indian','Thai'];
+      const mbti = ['INTJ','INFP','ENFP','ENTJ','ISFJ','ESTP','INFJ','ISTP','ENFJ','ESFP','ISTJ','ENTP'];
+      const jobs = ['Designer','Engineer','Nurse','Teacher','Accountant','Chef','Photographer','Marketing','Lawyer','Student','Doctor','Barista','Pilot','Artist','Banker','Writer'];
+      const places = ['Central','Mong Kok','Tsim Sha Tsui','Causeway Bay','Sha Tin','Tsuen Wan','Wan Chai','Sai Kung','Kowloon Tong','Tai Po'];
+      const hobbies = ['Hiking','Coffee','Travel','Movies','Cooking','Yoga','Gym','Music','Reading','Gaming','Photography','Dancing','Wine','Art','Cats','Dogs','Beach','Karaoke'];
+      const abouts = ['Looking for someone who can make me laugh.','Weekend hiker, weekday coffee addict.','I love quiet dinners and long talks.','Always planning my next trip.','Foodie who knows every hidden restaurant.','Honest, calm and a little bit shy at first.','Let\'s skip the small talk.','Music festivals and sunsets are my thing.'];
+      const list = [];
+      const make = (name, gender, i) => {
+        const tags = [];
+        while (tags.length < 3) { const h = pick(hobbies); if (!tags.includes(h)) tags.push(h); }
+        const h = gender === 'male' ? 165 + Math.floor(rnd() * 25) : 152 + Math.floor(rnd() * 22);
+        return {
+          id: 'fake_' + gender + '_' + i, isFake: true, username: '',
+          alias: name, gender: gender,
+          age: 18 + Math.floor(rnd() * 23),
+          lookingFor: pick(looking), maritalStatus: pick(marital),
+          about: pick(abouts), height: h + ' cm', ethnicity: pick(ethnicity),
+          mbti: pick(mbti), occupation: pick(jobs), location: pick(places),
+          interests: tags, photo: ''
+        };
+      };
+      maleNames.forEach((n, i) => list.push(make(n, 'male', i)));
+      femaleNames.forEach((n, i) => list.push(make(n, 'female', i)));
+      return list;
+    })();
+
+    function fakeSeenKey() { return 'sg_fake_seen_' + currentUserId; }
+    function getFakeSeen() { try { return JSON.parse(localStorage.getItem(fakeSeenKey()) || '[]'); } catch (e) { return []; } }
+    function markFakeSeen(id) { const s = getFakeSeen(); if (!s.includes(id)) { s.push(id); localStorage.setItem(fakeSeenKey(), JSON.stringify(s)); } }
+
     async function fetchAllEligibleProfiles() {
+      const real = await fetchRealProfiles();
+      if (lastDeckError) return [];
+      const minAge = parseInt(document.getElementById('pref-age-min').value) || 18;
+      const maxAge = parseInt(document.getElementById('pref-age-max').value) || 99;
+      const seen = new Set([...getFakeSeen(), ...dismissedUserIds]);
+      const fakes = FAKE_PROFILES.filter(f => !seen.has(f.id)
+        && (selectedGenderPref === 'any' || f.gender === selectedGenderPref.toLowerCase())
+        && f.age >= minAge && f.age <= maxAge);
+      const all = real.concat(fakes);
+      for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+      return all;
+    }
+
+    async function fetchRealProfiles() {
       lastDeckError = null;
       if (!currentUserId) return [];
 
@@ -944,10 +1009,12 @@
 
       const targetUser = currentCardProfile;
       if (targetUser) dismissedUserIds.push(targetUser.id);
+      if (targetUser && targetUser.isFake) markFakeSeen(targetUser.id);
 
       setTimeout(async () => {
         renderDeck();
-        if (isLike && targetUser) handleUserLikeAction(targetUser);
+        // Demo profiles never match - nothing is saved for them.
+        if (isLike && targetUser && !targetUser.isFake) handleUserLikeAction(targetUser);
       }, 300);
     }
 
@@ -1482,7 +1549,13 @@
       }, 1000);
     }
 
+    function isProfileComplete() {
+      const p = currentUserProfile;
+      return !!(p && p.alias && p.gender && p.age);
+    }
+
     async function loadProfileForm() {
+      currentUserProfile = null;
       if (!currentEmail || !currentUserId) return;
       const { data: p } = await window.supabaseClient.from('profiles').select('*').eq('id', currentUserId).maybeSingle();
       if (p) {
@@ -1527,6 +1600,15 @@
     window.saveProfile = async function() {
       if (!currentEmail || !currentUserId) return;
 
+      if (!document.getElementById('user-alias').value.trim() || !document.getElementById('user-gender').value || !document.getElementById('user-age').value) {
+        alert("Please fill in Name, Gender and Age before saving.");
+        return;
+      }
+      const ageCheck = parseInt(document.getElementById('user-age').value);
+      if (isNaN(ageCheck) || ageCheck < 18) {
+        alert("You must be 18 or older to join.");
+        return;
+      }
       const saveBtn = document.getElementById('save-profile-btn');
       saveBtn.disabled = true;
       saveBtn.innerText = "Saving Profile...";
