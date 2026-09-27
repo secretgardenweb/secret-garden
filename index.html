@@ -440,7 +440,7 @@
         <div class="setup-subtitle">Complete your profile to appear in the matching deck.</div>
 
         <div class="file-input-wrapper" id="photo-wrapper-box" onclick="document.getElementById('user-photo').click()">
-          <div class="file-label" id="photo-label">📷 Upload Secret Photo (Optional)</div>
+          <div class="file-label" id="photo-label">📷 Upload Secret Photo (Required)</div>
           <input type="file" id="user-photo" accept="image/*" onchange="previewUserPhoto(event)">
           <img id="my-photo-preview" class="photo-preview" alt="Preview">
         </div>
@@ -1607,6 +1607,10 @@
       const ageCheck = parseInt(document.getElementById('user-age').value);
       if (isNaN(ageCheck) || ageCheck < 18) {
         alert("You must be 18 or older to join.");
+        return;
+      }
+      if (!selectedFileToUpload && !uploadedUserPhoto) {
+        alert("Please upload a profile photo before saving. Your photo stays hidden until you match with someone.");
         return;
       }
       const saveBtn = document.getElementById('save-profile-btn');
