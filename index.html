@@ -158,8 +158,7 @@
       justify-content: space-between; 
       box-shadow: 0 15px 35px rgba(0,0,0,0.6); 
       user-select: none; 
-      touch-action: none; 
-      cursor: grab; 
+      cursor: default; 
     }
 
     .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(62, 107, 82, 0.25); padding-bottom: 12px; }
@@ -168,24 +167,6 @@
 
     .card-body { flex-grow: 1; overflow-y: auto; }
     
-    .hidden-photo-box { 
-      width: 100%; 
-      height: 100px; 
-      border-radius: 14px; 
-      background: rgba(8, 13, 10, 0.7); 
-      border: 1px dashed rgba(224, 169, 109, 0.4); 
-      display: flex; 
-      flex-direction: column; 
-      justify-content: center; 
-      align-items: center; 
-      color: #e0a96d; 
-      font-size: 12px; 
-      font-weight: 600; 
-      margin-bottom: 12px; 
-      text-align: center; 
-      padding: 10px; 
-    }
-
     .section-title { font-size: 11px; text-transform: uppercase; color: #a4cbb5; font-weight: 800; margin-top: 12px; margin-bottom: 6px; letter-spacing: 1px; }
 
     .grid-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -197,10 +178,6 @@
 
     .tags-container { display: flex; flex-wrap: wrap; gap: 6px; }
     .tag { background: rgba(34, 56, 45, 0.7); color: #d1e2d8; padding: 6px 12px; border-radius: 16px; font-size: 12px; border: 1px solid rgba(82, 138, 106, 0.3); }
-
-    .stamp { position: absolute; top: 35px; padding: 8px 18px; border-radius: 10px; font-size: 22px; font-weight: 800; opacity: 0; pointer-events: none; border: 3px solid; z-index: 10; }
-    .stamp.like { right: 24px; color: #4cd137; border-color: #4cd137; transform: rotate(12deg); }
-    .stamp.nope { left: 24px; color: #e84118; border-color: #e84118; transform: rotate(-12deg); }
 
     .controls { display: flex; justify-content: center; gap: 28px; margin-top: 12px; }
     .btn-circle { width: 58px; height: 58px; border-radius: 50%; border: none; font-size: 22px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
@@ -380,7 +357,7 @@
         </div>
       </div>
 
-      <!-- MATCHING PLACE (Swipe Cards) -->
+      <!-- MATCHING PLACE (Button Decisions Only) -->
       <div id="slide-match" class="view hidden">
         <div id="deck-header">
           <span style="font-size:12px; font-weight:800; color:#a4cbb5; letter-spacing:1px; text-transform:uppercase;">Discover Profiles</span>
@@ -774,7 +751,7 @@
       switchSlide('match');
     };
 
-    // FIX: only people I already swiped are excluded. People who liked ME must
+    // FIX: only people I already decided on are excluded. People who liked ME must
     // stay in the deck, otherwise a mutual match can never happen.
     let lastDeckError = null;
 
@@ -846,7 +823,7 @@
 
       const excludedIds = new Set([currentUserId, ...dismissedUserIds]);
 
-      // People I already liked/passed on
+      // People I already chose with the Like or Cross button
       const { data: myMatches } = await window.supabaseClient
         .from('matches')
         .select('target_user_id')
@@ -933,17 +910,11 @@
       const interestsList = Array.isArray(profile.interests) ? profile.interests : [];
 
       card.innerHTML = `
-        <div class="stamp like">LIKE</div>
-        <div class="stamp nope">NOPE</div>
         <div class="card-header">
           <div class="user-alias">${profile.alias}</div>
           <div class="user-badge">Discretion Guaranteed</div>
         </div>
         <div class="card-body">
-          <div class="hidden-photo-box">
-            <span>🔒 Confidential Profile Photo</span>
-            <span style="font-weight:400; font-size:10px; color:#8fa397; margin-top:4px;">Photo visible inside secret room.</span>
-          </div>
           ${profile.lookingFor ? `<div class="section-title">Looking For</div><div class="about-box" style="color:#e0a96d; font-weight:600;">${profile.lookingFor}</div>` : ''}
           ${profile.about ? `<div class="section-title">About Me</div><div class="about-box">${profile.about}</div>` : ''}
           <div class="section-title">Overview</div>
@@ -959,52 +930,19 @@
         </div>
       `;
 
-      attachCardGestures(card);
       deckEl.appendChild(card);
-    }
-
-    function attachCardGestures(card) {
-      let startX = 0, currentX = 0;
-      const likeStamp = card.querySelector('.stamp.like');
-      const nopeStamp = card.querySelector('.stamp.nope');
-
-      const onStart = (e) => {
-        startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-        document.addEventListener(e.type.includes('touch') ? 'touchmove' : 'mousemove', onMove);
-        document.addEventListener(e.type.includes('touch') ? 'touchend' : 'mouseup', onEnd);
-      };
-
-      const onMove = (e) => {
-        currentX = (e.type.includes('touch') ? e.touches[0].clientX : e.clientX) - startX;
-        card.style.transform = `translateX(${currentX}px) rotate(${currentX * 0.05}deg)`;
-        if (currentX > 0) { likeStamp.style.opacity = Math.min(currentX / 100, 1); nopeStamp.style.opacity = 0; }
-        else { nopeStamp.style.opacity = Math.min(Math.abs(currentX) / 100, 1); likeStamp.style.opacity = 0; }
-      };
-
-      const onEnd = () => {
-        document.removeEventListener('touchmove', onMove);
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('touchend', onEnd);
-        document.removeEventListener('mouseup', onEnd);
-
-        if (Math.abs(currentX) > 100) completeSwipe(card, currentX > 0);
-        else { card.style.transform = ''; likeStamp.style.opacity = 0; nopeStamp.style.opacity = 0; }
-      };
-
-      card.addEventListener('mousedown', onStart);
-      card.addEventListener('touchstart', onStart);
     }
 
     window.handleButtonClick = function(isLike) {
       const card = document.querySelector('#deck .card');
       if (!card) return;
-      completeSwipe(card, isLike);
+      processProfileDecision(card, isLike);
     };
 
-    async function completeSwipe(card, isLike) {
-      const flyX = isLike ? 500 : -500;
-      card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
-      card.style.transform = `translateX(${flyX}px) rotate(${flyX * 0.05}deg)`;
+    async function processProfileDecision(card, isLike) {
+      card.style.pointerEvents = 'none';
+      card.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+      card.style.transform = 'scale(0.96)';
       card.style.opacity = 0;
 
       const targetUser = currentCardProfile;
@@ -1015,7 +953,7 @@
         renderDeck();
         // Demo profiles never match - nothing is saved for them.
         if (isLike && targetUser && !targetUser.isFake) handleUserLikeAction(targetUser);
-      }, 300);
+      }, 250);
     }
 
     // ---------------------------------------------------------------
@@ -1192,7 +1130,7 @@
       });
 
       if (userRooms.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active rooms.<br>Swipe LIKE on profile cards to match!</div>`;
+        container.innerHTML = `<div style="text-align:center; color:#62756a; padding:40px 20px; font-size:14px;">No active rooms.<br>Press the heart button on profiles to match!</div>`;
         return;
       }
 
