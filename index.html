@@ -325,7 +325,8 @@
         </svg>
         <span>SECRET GARDEN</span>
       </div>
-      <button id="logout-btn" style="background:none; border:none; color:#8fa397; font-size:12px; cursor:pointer;" onclick="logout()">Logout</button>
+      <button id="logout-btn" style="background:none; border:none; color:#8fa397; font-size:12px; cursor:pointer; display:none;" onclick="logout()">Logout</button>
+      <button id="signin-btn" style="background:#e0a96d; border:none; color:#1a2f26; font-size:12px; font-weight:700; cursor:pointer; border-radius:8px; padding:6px 12px;" onclick="showAuthView()">Sign In</button>
     </header>
 
     <div class="view-container">
@@ -359,6 +360,9 @@
 
       <!-- MATCHING PLACE (Button Decisions Only) -->
       <div id="slide-match" class="view hidden">
+        <div id="guest-banner" style="display:none; margin:10px 16px 0; padding:10px 14px; background:rgba(224,169,109,0.12); border:1px solid #e0a96d; border-radius:10px; color:#e0a96d; font-size:12px; font-weight:600; text-align:center;">
+          👀 Browsing as a guest — press ♥ to sign in and start matching
+        </div>
         <div id="deck-header">
           <span style="font-size:12px; font-weight:800; color:#a4cbb5; letter-spacing:1px; text-transform:uppercase;">Discover Profiles</span>
           <button class="pref-btn" onclick="openPreferences()">⚙ Preferences</button>
@@ -622,6 +626,9 @@
           currentUserId = session.user.id;
           isLoggedIn = true;
           document.getElementById('auth-view').classList.add('hidden');
+          document.getElementById('logout-btn').style.display = '';
+          document.getElementById('signin-btn').style.display = 'none';
+          document.getElementById('guest-banner').style.display = 'none';
           await loadProfileForm();
           if (isProfileComplete()) switchSlide('match');
           else {
@@ -632,10 +639,34 @@
           isLoggedIn = false;
           currentEmail = null;
           currentUserId = null;
-          document.getElementById('auth-view').classList.remove('hidden');
+          enterGuestMode();
         }
       });
+      // First paint: if there is no stored session, guests see the deck immediately.
+      const { data: bootData } = await window.supabaseClient.auth.getSession();
+      if (!bootData || !bootData.session) enterGuestMode();
     });
+
+    // Guests land on the matching deck (demo profiles) instead of the login form.
+    function enterGuestMode() {
+      document.getElementById('auth-view').classList.add('hidden');
+      document.getElementById('logout-btn').style.display = 'none';
+      document.getElementById('signin-btn').style.display = '';
+      document.getElementById('guest-banner').style.display = '';
+      document.getElementById('slide-match').classList.remove('hidden');
+      document.getElementById('tab-match').classList.add('active');
+      profileQueue = [];
+      renderDeck();
+    }
+
+    window.showAuthView = function() {
+      document.getElementById('slide-match').classList.add('hidden');
+      document.getElementById('slide-preference').classList.add('hidden');
+      document.getElementById('slide-rooms').classList.add('hidden');
+      document.getElementById('slide-profile').classList.add('hidden');
+      document.getElementById('active-chat-view').classList.add('hidden');
+      document.getElementById('auth-view').classList.remove('hidden');
+    };
 
     window.toggleAuthMode = function() {
       isSignUp = !isSignUp;
@@ -699,11 +730,15 @@
       dismissedUserIds = [];
       document.getElementById('auth-email').value = '';
       document.getElementById('auth-pass').value = '';
-      document.getElementById('auth-view').classList.remove('hidden');
+      enterGuestMode();
     };
 
     window.switchSlide = function(slideName) {
-      if (!isLoggedIn) return;
+      if (!isLoggedIn) {
+        if (slideName === 'match') return; // guests may keep browsing the deck
+        showAuthView();
+        return;
+      }
       if ((slideName === 'match' || slideName === 'rooms') && !isProfileComplete()) {
         alert("Please fill in and save your profile first (Name, Gender and Age are required).");
         slideName = 'profile';
@@ -978,6 +1013,11 @@
     }
 
     window.handleButtonClick = function(isLike) {
+      if (!isLoggedIn) {
+        showAuthView();
+        alert("Sign in or create a free account to like profiles and start matching!");
+        return;
+      }
       const card = document.querySelector('#deck .card');
       if (!card) return;
       processProfileDecision(card, isLike);
