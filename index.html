@@ -756,42 +756,86 @@
     let lastDeckError = null;
 
     // ---------------------------------------------------------------
-    // 60 DEMO PROFILES (20 male, 40 female, age 18-40).
-    // They live only in this page (not in Supabase). Liking them never
-    // creates a match - they just fill up the matching pool.
+    // 45 DEMO PROFILES (34 female, 11 male, age 18-40), adult-dating
+    // style: single mums/dads, couples seeking 3P/4P, attached people
+    // looking for secret love, sexual-partner seekers and fetish /
+    // kink-friendly profiles. They live only in this page (not in
+    // Supabase). Liking them never creates a match.
     // ---------------------------------------------------------------
     const FAKE_PROFILES = (function() {
-      let seed = 20260926;
+      // [name, gender, age, lookingFor, maritalStatus, about, interests]
+      const D = [
+        // --- Single mums looking for fun ---
+        ['Bella','female',34,'After-hours fun, kids are asleep','Single parent','Single mum of one. I have zero time for boring men - I want someone confident, discreet and good with his hands. What happens here stays here.',['Wine','Dancing','Late-night chats']],
+        ['Sophie','female',38,'Single mum seeking fun','Single parent','Divorced, 38, done with marriage. Looking for a younger man who can keep up with me. Very open-minded and very curious.',['Yoga','Spa days','Naughty texts']],
+        ['Grace','female',33,'No-strings fun','Single parent','Single mum, two jobs, no patience for games. I know exactly what I like and I want someone who can host. Discretion guaranteed.',['Gym','Coffee','Weekend drives']],
+        ['Hannah','female',36,'Casual fun, very discreet','Single parent','Busy single mum by day, someone else by night. Looking for an adult, drama-free arrangement that fits my schedule.',['Wine','Movies','Massages']],
+        ['Wendy','female',35,'Single mum looking for excitement','Single parent','My kid is my world, my love life is empty. Hoping to find a fun, clean, confident man to change that. Hotel dates preferred.',['Cooking','Dancing','Candles']],
+        ['Uma','female',29,'Fun without commitment','Single parent','Young single mum with early-20s energy. I miss being desired. Looking for someone who makes me forget I ever got married.',['Gym','Beach','Karaoke']],
+        // --- Single dads looking for fun ---
+        ['Marcus','male',39,'Fun with single mums (or anyone bored)','Single parent','Divorced dad, kids with their mum on weekends. I have a nice flat, good wine and no strings to offer. Very open-minded.',['Wine','Golf','Cooking']],
+        ['Daniel','male',37,'Discreet fun, nothing serious','Single parent','Single dad, lonely nights. Looking for someone relaxed and adventurous who enjoys spontaneous late-night meetings.',['Movies','Travel','Late-night chats']],
+        ['Nathan','male',31,'NSA fun with a nice guy','Single parent','Handsome single dad, clean, polite, quietly kinky. I can host or travel. Let\'s skip dinner and see where the night goes.',['Gym','Music','Massage']],
+        // --- Couples seeking couples (3P / 4P) ---
+        ['Yuki','female',28,'Couple seeking couple (4P)','Attached','We are a fit, clean young couple looking for another fun couple to swap with. We host, we play safe, we never kiss and tell.',['Lingerie','Parties','Hotels']],
+        ['Zara','female',31,'Couple wants 3P - choose your role','Attached','My boyfriend loves to watch. Looking for a lady (or a gentleman) to join us for our first 3P. Beginners very welcome.',['Cocktails','Dancing','Party games']],
+        ['Coco','female',26,'Couple looking for a third','Attached','Happy couple, looking for a playful third to complete our weekends. Trust is everything - be clean, chill and curious.',['Wine','Spa','City trips']],
+        ['Iris','female',30,'4P party couple','Attached','Experienced and very satisfied. We are looking for another couple who knows what they are doing. Photo profiles get replies first.',['Dancing','Hotels','Champagne']],
+        ['Adrian','male',35,'Couple seeking couple for 4P','Attached','My girlfriend and I are searching for an open-minded couple. We are clean, tested and respectful. Curious singles (F) may also apply.',['Fitness','Travel','Wine']],
+        ['Queenie','female',27,'3P with my partner, maybe more','Attached','We started with just watching, now we want to touch. Join us for a 3P and who knows where the night ends.',['Karaoke','Beach','Lingerie']],
+        // --- Attached people looking for secret love ---
+        ['Mia','female',27,'Secret lover wanted','Attached','Yes, I have a boyfriend. He travels a lot. I am looking for someone who can keep a secret and make me feel wanted again.',['Coffee','Reading','Secret dates']],
+        ['Elena','female',33,'Discreet affair, no drama','Attached','Married but lonely. My husband thinks I am at yoga. Looking for someone charming, patient and very, very discreet.',['Yoga','Art','Long lunches']],
+        ['Aria','female',25,'Cheating on purpose','Attached','He is sweet but boring. I need sparks, butterflies and messy nights that never reach my phone. Are you discreet enough?',['Music','Dancing','Late-night calls']],
+        ['Gigi','female',29,'Secret girlfriend needed','Attached','Engaged, not yet dead inside. Looking for a secret boyfriend to text me good morning and meet me on Thursdays.',['Baking','Movies','Hotels']],
+        ['Lily','female',31,'Attached and restless','Attached','Ten years with the same man. I miss flirting. Looking for a gentleman who enjoys slow burn and zero drama.',['Wine','Books','Hiking']],
+        ['Pearl','female',34,'Married but looking','Attached','Wedding ring still on, heart long gone. Seeking a secret lover who understands boundaries. Mornings are the only risk.',['Coffee','Galleries','Spa']],
+        ['Kevin','male',30,'Attached, seeking secret affair','Attached','Dating my girlfriend for 4 years, the spark is gone. Looking for someone to fill my lunch breaks and hotel afternoons.',['Gym','Photography','Coffee']],
+        ['Ryan','male',32,'Secret romance only','Attached','I have a girlfriend, a boring routine and a big secret to keep. Looking for a passionate, discreet woman. Your secret is safe too.',['Travel','Movies','Cooking']],
+        // --- Looking for a sexual partner ---
+        ['Luna','female',24,'Looking for a regular FWB','Single','No relationship, no pressure, just fun. Looking for one reliable partner who can host and knows how to keep things exciting.',['Gym','Music','Late-night chats']],
+        ['Ruby','female',22,'Seeking a generous playmate','Single','Uni student with expensive taste and a busy schedule. Looking for a generous gentleman who can spoil me discreetly.',['Shopping','Coffee','Travel']],
+        ['Fiona','female',28,'Friends first, benefits after','Single','Let\'s be honest - we are all here for something. I want a friendly, playful arrangement with one clean, fun person.',['Movies','Dining out','Dancing']],
+        ['Stella','female',27,'No strings, just fun','Single','Work hard, play harder. Looking for someone who can match my energy after 10pm. Charming talkers go to the front of the line.',['Clubbing','Fitness','Wine']],
+        ['Tina','female',30,'Passionate partner wanted','Single','Tired of apps full of pen pals. I want real dates, real chemistry and real sparks. Brave enough to skip the small talk?',['Salsa','Wine','Travel']],
+        ['Hugo','male',36,'Discreet FWB partner wanted','Single','Professional, clean, great host. Looking for a relaxed woman who wants an uncomplicated regular arrangement. Zero pressure.',['Whisky','Golf','Cooking']],
+        ['Owen','male',25,'Casual fun partner','Single','Young, fit and very curious. Looking for someone to teach me things my textbooks never covered. Very open-minded.',['Gym','Gaming','Beach']],
+        ['Amber','female',26,'Open to anything exciting','Single','Not looking for love, looking for excitement. If you are fun, clean and confident, we will get along perfectly.',['Dancing','Cocktails','Live music']],
+        // --- Kink / fetish lovers (feet, toes, long hair...) ---
+        ['Ivy','female',23,'Foot & toe lover seeking same','Single','I have a serious weakness for feet - mine and yours. Looking for someone who shares this kink and is patient, clean and playful.',['Pedicures','Heels','Photos']],
+        ['Hazel','female',33,'Kink-friendly and curious','Single','Long hair, soft voice, filthy imagination. Looking for someone open-minded to explore my foot and teasing kinks with me.',['Yoga','Silk','Reading']],
+        ['Kelly','female',26,'Toes, heels and teasing','Single','I love being worshipped from the ankles up. If you know what nylons mean to a man, we should talk.',['Shopping','Dancing','Lingerie']],
+        ['Maya','female',29,'Long hair is my thing','Single','Yes, my hair is real and down to my waist. Looking for someone who loves playing with it as much as I love showing it off.',['Hair care','Music','Cafes']],
+        ['Jasmine','female',30,'Foot worship fan','Single','Shy in public, not so shy in private. I enjoy gentle teasing, foot massages and taking things very slowly. Curious minds welcome.',['Baking','Pedicures','Movies']],
+        ['Rose','female',28,'Explore my kinky side','Single','Curious girl next door with a growing list of interests. Looking for a patient, playful partner to check things off with.',['Yoga','Art','Board games']],
+        ['Sara','female',25,'Fetish-friendly and open','Single','I like confident men with specific tastes. Tell me yours - feet, hair, heels? I promise not to judge, only to blush.',['Coffee','Fashion','Karaoke']],
+        ['Leo','male',27,'Foot & toe lover','Single','Guilty as charged - I adore beautiful feet and painted toes. Looking for a lady who enjoys being adored properly.',['Sneakers','Music','Coffee']],
+        ['Vincent','male',40,'Long hair devotee','Single','Old-school gentleman with one weakness: long, silky hair. If that is you, I already know we will get along.',['Jazz','Wine','Reading']],
+        ['Felix','male',29,'Kink-compatible partner wanted','Single','Clean, respectful and open-minded. I have a few favourite kinks (yes, feet) and I am looking for someone who shares or wants to explore.',['Fitness','Travel','Documentaries']],
+        // --- A few more flirty fillers ---
+        ['Nina','female',31,'Discreet fun with an older lady','Single','Older, wiser, single by choice. Looking for fun with someone who appreciates experience. I host, I decide, I never repeat.',['Wine','Books','Gardening']],
+        ['Vivian','female',36,'Naughty but selective','Single','I know what I want and it is not a boyfriend. Clean, confident and charming - message me if that sounds like you.',['Pilates','Fashion','Travel']],
+        ['Daisy','female',21,'First time being naughty','Single','Quiet girl, loud thoughts. Looking for someone patient to show me what I have been missing. Beginners teaching beginners?',['Anime','Baking','Cafes']],
+        ['Una','female',38,'Married? Yes. Happy? Ask me.','Attached','Happily married, boringly so. Looking for excitement that stays in this app. Confident, funny, discreet men only.',['Sailing','Wine','Massages']]
+      ];
+      let seed = 20260927;
       const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
       const pick = arr => arr[Math.floor(rnd() * arr.length)];
-      const maleNames = ['Ethan','Lucas','Kai','Ryan','Jason','Leo','Marcus','Daniel','Aaron','Nathan','Owen','Vincent','Kevin','Adrian','Brian','Felix','Samuel','Hugo','Ivan','Jayden'];
-      const femaleNames = ['Chloe','Mia','Sophie','Emma','Grace','Luna','Ivy','Zoe','Olivia','Hannah','Jasmine','Bella','Aria','Ella','Nina','Ruby','Stella','Iris','Amber','Coco','Daisy','Elena','Fiona','Gigi','Hazel','Jade','Kelly','Lily','Maya','Nora','Pearl','Queenie','Rose','Sara','Tina','Una','Vivian','Wendy','Yuki','Zara'];
-      const looking = ['Something serious','Casual dating','New friends','A long-term partner','Someone to explore the city with','Not sure yet, let\'s see'];
-      const marital = ['Single','Single','Single','Divorced','Separated'];
       const ethnicity = ['Asian','Chinese','Japanese','Korean','Filipino','Caucasian','Mixed','Indian','Thai'];
       const mbti = ['INTJ','INFP','ENFP','ENTJ','ISFJ','ESTP','INFJ','ISTP','ENFJ','ESFP','ISTJ','ENTP'];
       const jobs = ['Designer','Engineer','Nurse','Teacher','Accountant','Chef','Photographer','Marketing','Lawyer','Student','Doctor','Barista','Pilot','Artist','Banker','Writer'];
       const places = ['Central','Mong Kok','Tsim Sha Tsui','Causeway Bay','Sha Tin','Tsuen Wan','Wan Chai','Sai Kung','Kowloon Tong','Tai Po'];
-      const hobbies = ['Hiking','Coffee','Travel','Movies','Cooking','Yoga','Gym','Music','Reading','Gaming','Photography','Dancing','Wine','Art','Cats','Dogs','Beach','Karaoke'];
-      const abouts = ['Looking for someone who can make me laugh.','Weekend hiker, weekday coffee addict.','I love quiet dinners and long talks.','Always planning my next trip.','Foodie who knows every hidden restaurant.','Honest, calm and a little bit shy at first.','Let\'s skip the small talk.','Music festivals and sunsets are my thing.'];
-      const list = [];
-      const make = (name, gender, i) => {
-        const tags = [];
-        while (tags.length < 3) { const h = pick(hobbies); if (!tags.includes(h)) tags.push(h); }
-        const h = gender === 'male' ? 165 + Math.floor(rnd() * 25) : 152 + Math.floor(rnd() * 22);
+      return D.map(function(d, i) {
+        const h = d[1] === 'male' ? 165 + Math.floor(rnd() * 25) : 152 + Math.floor(rnd() * 22);
         return {
-          id: 'fake_' + gender + '_' + i, isFake: true, username: '',
-          alias: name, gender: gender,
-          age: 18 + Math.floor(rnd() * 23),
-          lookingFor: pick(looking), maritalStatus: pick(marital),
-          about: pick(abouts), height: h + ' cm', ethnicity: pick(ethnicity),
+          id: 'fake2_' + d[1] + '_' + i, isFake: true, username: '',
+          alias: d[0], gender: d[1], age: d[2],
+          lookingFor: d[3], maritalStatus: d[4], about: d[5],
+          height: h + ' cm', ethnicity: pick(ethnicity),
           mbti: pick(mbti), occupation: pick(jobs), location: pick(places),
-          interests: tags, photo: ''
+          interests: d[6], photo: ''
         };
-      };
-      maleNames.forEach((n, i) => list.push(make(n, 'male', i)));
-      femaleNames.forEach((n, i) => list.push(make(n, 'female', i)));
-      return list;
+      });
     })();
 
     function fakeSeenKey() { return 'sg_fake_seen_' + currentUserId; }
